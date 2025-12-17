@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 import 'mock_data.dart';
 import 'main_layout.dart';
+
+  Widget _getPlatformImage(String path) {
+    if (kIsWeb) {
+      return Image.network(path, fit: BoxFit.cover);
+    }
+    return Image.file(File(path), fit: BoxFit.cover);
+  }
 
 class IndividualMachinePage extends StatelessWidget {
   final MachineData machine;
@@ -400,8 +410,8 @@ class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
       child: GridView.builder(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 320,
           crossAxisSpacing: 16,
           mainAxisSpacing: 16,
           childAspectRatio: 1.6, // Wider cards
@@ -510,12 +520,17 @@ class _ProductSlotCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                              color: Colors.black26, 
                           ),
-                          child: slot.imageAsset.isNotEmpty
+                          child: (slot.localImagePath != null)
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
-                                  child: Image.asset(slot.imageAsset, fit: BoxFit.cover),
+                                  child: _getPlatformImage(slot.localImagePath!),
                                 )
-                              : const Icon(Icons.inventory_2_outlined, color: Colors.grey),
+                              : (slot.imageAsset.isNotEmpty
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: Image.asset(slot.imageAsset, fit: BoxFit.cover),
+                                    )
+                                  : const Icon(Icons.inventory_2_outlined, color: Colors.grey)),
                         ),
                         const SizedBox(width: 12),
                         // Name and Price
@@ -880,6 +895,8 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
   late TextEditingController _stockController;
   late double _maxCapacity;
   late bool _isEnabled;
+  XFile? _pickedImageFile;
+  String? _stockErrorText;
 
   @override
   void initState() {
@@ -890,10 +907,27 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
     _stockController = TextEditingController(text: widget.slot.currentStock.toString());
     _maxCapacity = widget.slot.maxStock.toDouble();
     _isEnabled = widget.slot.status != SlotStatus.error && widget.slot.status != SlotStatus.empty;
+    _stockController.addListener(_validateStock);
+  }
+
+  void _validateStock() {
+    final stock = int.tryParse(_stockController.text);
+    if (stock != null && stock > _maxCapacity) {
+      setState(() {
+        _stockErrorText = 'Cannot exceed max capacity (${_maxCapacity.toInt()})';
+      });
+    } else {
+      if (_stockErrorText != null) {
+        setState(() {
+          _stockErrorText = null;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    _stockController.removeListener(_validateStock);
     _nameController.dispose();
     _skuController.dispose();
     _priceController.dispose();
@@ -998,13 +1032,35 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Center(
-                                child: widget.slot.imageAsset.isNotEmpty
+                              child: InkWell(
+                                onTap: () async {
+                                  final ImagePicker picker = ImagePicker();
+                                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                                  if (image != null) {
+                                    setState(() {
+                                      _pickedImageFile = image;
+                                    });
+                                  }
+                                },
+                                borderRadius: BorderRadius.circular(8),
+                                child: Center(
+                                  child: _pickedImageFile != null 
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(7),
-                                        child: Image.asset(widget.slot.imageAsset, fit: BoxFit.contain, width: 60, height: 60),
+                                        child: _getPlatformImage(_pickedImageFile!.path),
                                       )
-                                    : const Icon(Icons.image, color: Colors.grey),
+                                    : (widget.slot.localImagePath != null
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(7),
+                                            child: _getPlatformImage(widget.slot.localImagePath!),
+                                          )
+                                        : (widget.slot.imageAsset.isNotEmpty
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(7),
+                                                child: Image.asset(widget.slot.imageAsset, fit: BoxFit.contain, width: 60, height: 60),
+                                              )
+                                            : const Icon(Icons.add_a_photo, color: Colors.grey))),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -1061,12 +1117,13 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                                _DialogInput(
                                 label: 'Current Stock',
                                 controller: _stockController,
+                                errorText: _stockErrorText,
                                 suffix: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                                   decoration: const BoxDecoration(
                                     border: Border(left: BorderSide(color: Color(0xFF333333))),
                                   ),
-                                  child: Text('/ 10', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                                  child: Text('/ ${_maxCapacity}', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -1104,8 +1161,11 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                       child: Slider(
                         value: _maxCapacity,
                         min: 0,
-                        max: 20,
-                        onChanged: (val) => setState(() => _maxCapacity = val),
+                        max: 30,
+                        onChanged: (val) {
+                          setState(() => _maxCapacity = val);
+                          _validateStock();
+                        },
                       ),
                     ),
                     Row(
@@ -1114,6 +1174,8 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                         Text('0', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 10)),
                         Text('10', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 10)),
                         Text('20', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 10)),
+                        Text('30', style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 10)),
+
                       ],
                     ),
                     const SizedBox(height: 32),
@@ -1167,7 +1229,7 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: _stockErrorText != null ? null : () {
                       // Create updated slot object
                       final updatedSlot = ProductSlot(
                         id: widget.slot.id,
@@ -1178,7 +1240,7 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                         maxStock: _maxCapacity.toInt(),
                         currentStock: int.tryParse(_stockController.text) ?? widget.slot.currentStock,
                         status: _isEnabled ? (widget.slot.status == SlotStatus.empty ? SlotStatus.normal : widget.slot.status) : SlotStatus.empty, 
-                        // lastRefill: removed not in model
+                        localImagePath: _pickedImageFile?.path ?? widget.slot.localImagePath,
                       );
                       Navigator.pop(context, updatedSlot);
                     },
@@ -1205,12 +1267,14 @@ class _DialogInput extends StatelessWidget {
   final TextEditingController controller;
   final Widget? prefix;
   final Widget? suffix;
+  final String? errorText;
 
   const _DialogInput({
     required this.label,
     required this.controller,
     this.prefix,
     this.suffix,
+    this.errorText,
   });
 
   @override
@@ -1227,7 +1291,7 @@ class _DialogInput extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xFF141414),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF333333)),
+            border: Border.all(color: errorText != null ? const Color(0xFFFF6B6B) : const Color(0xFF333333)),
           ),
           child: Row(
             children: [
@@ -1247,6 +1311,13 @@ class _DialogInput extends StatelessWidget {
             ],
           ),
         ),
+        if (errorText != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            errorText!,
+            style: GoogleFonts.inter(color: const Color(0xFFFF6B6B), fontSize: 12),
+          ),
+        ],
       ],
     );
   }

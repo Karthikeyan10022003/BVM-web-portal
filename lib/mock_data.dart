@@ -58,6 +58,7 @@ class ProductSlot {
   final int currentStock;
   final int maxStock;
   final SlotStatus status;
+  final String? localImagePath;
 
   ProductSlot({
     required this.id,
@@ -67,6 +68,7 @@ class ProductSlot {
     required this.currentStock,
     required this.maxStock,
     this.status = SlotStatus.normal,
+    this.localImagePath,
   });
 }
 
