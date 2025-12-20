@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'mock_data.dart';
 import 'main_layout.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
   Widget _getPlatformImage(String path) {
     if (kIsWeb) {
@@ -384,12 +386,96 @@ class _ProductSlotsGrid extends StatefulWidget {
 }
 
 class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
-  late List<ProductSlot> _slots;
+  List<ProductSlot> _slots = [];
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _slots = List.from(widget.slots);
+    _fetchSlots();
+  }
+
+  Future<void> _fetchSlots() async {
+    try {
+      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getSlotDetails'));
+      print("Data recieved from api"+response.body);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        
+        // Attempt to locate the products list based on expected API structure
+        List<dynamic>? productsList;
+        if (jsonResponse.containsKey('data')) {
+            if (jsonResponse['data'] is Map && jsonResponse['data']['products'] != null) {
+               productsList = jsonResponse['data']['products'];
+            } else if (jsonResponse['data'] is List) {
+               productsList = jsonResponse['data'];
+            }
+        } else if (jsonResponse['products'] != null) {
+             productsList = jsonResponse['products'];
+        } else if (jsonResponse['result'] != null && jsonResponse['result'] is List) {
+             productsList = jsonResponse['result'];
+        }
+        
+        if (productsList != null) {
+          final List<ProductSlot> fetchedSlots = productsList.map((data) {
+            print("Data of stock :"+data['stockInfo'].toString());
+            List stock_data=data['stockInfo'];
+            print("Data of stock :"+stock_data.toString());
+            int qty=0;
+            if(stock_data.isNotEmpty){
+              qty=stock_data[0]['qty'];
+            }
+            return ProductSlot(
+              id: data['slotName']?.toString() ?? '',
+              name: data['Product Name'] ?? 'Unknown',
+              price: ((data['Product Cost'] ?? 0)/100).toDouble(),
+              imageAsset: mockAssets[data['Product Name']] ?? data['Product Image'] ?? '',
+              
+              currentStock: qty??0,
+              maxStock: 10,
+              status: _parseStatus(data['status']),
+              localImagePath: null, 
+            );
+          }).toList();
+
+          if (mounted) {
+            setState(() {
+              _slots = fetchedSlots;
+              _isLoading = false;
+            });
+          }
+        } else {
+           if (mounted) setState(() => _isLoading = false);
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+             _error = 'Failed to load: ${response.statusCode}';
+             _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+           _error = 'Error: $e';
+           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  SlotStatus _parseStatus(String? status) {
+    if (status == null) return SlotStatus.normal;
+    switch (status.toLowerCase()) {
+      case 'empty': return SlotStatus.empty;
+      case 'low': return SlotStatus.lowStock; // Check if API returns 'low' or something else
+      case 'error': return SlotStatus.error;
+      default: return SlotStatus.normal;
+    }
   }
 
   void _handleSlotUpdate(int index, ProductSlot updatedSlot) {
@@ -400,6 +486,35 @@ class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Container(
+         height: 200,
+         alignment: Alignment.center,
+         decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF333333)),
+          ),
+         child: const CircularProgressIndicator(color: Color(0xFFE0CFA9)),
+      );
+    }
+    
+    if (_error != null) {
+       return Container(
+        height: 100,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.withOpacity(0.5)),
+        ),
+        child: Text(
+          'Failed to load slots: $_error', 
+          style: GoogleFonts.inter(color: Colors.red[300]),
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -528,7 +643,7 @@ class _ProductSlotCard extends StatelessWidget {
                               : (slot.imageAsset.isNotEmpty
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
-                                      child: Image.asset(slot.imageAsset, fit: BoxFit.cover),
+                                      child: _buildSlotImage(slot.imageAsset),
                                     )
                                   : const Icon(Icons.inventory_2_outlined, color: Colors.grey)),
                         ),
@@ -552,7 +667,7 @@ class _ProductSlotCard extends StatelessWidget {
                               if (!isEmpty) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  '₹${slot.price.toInt()}',
+                                  '₹${slot.price.toInt()}.00',
                                   style: GoogleFonts.inter(
                                     color: Colors.grey[400],
                                     fontSize: 13,
@@ -610,6 +725,56 @@ class _ProductSlotCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSlotImage(String path) {
+    if (path.isEmpty) {
+      return const Center(child: Icon(Icons.inventory_2_outlined, color: Colors.grey, size: 24));
+    }
+
+    String decodedPath = path.trim();
+    // Recursively decode
+    int decodeAttempts = 0;
+    while (decodedPath.contains('%') && decodeAttempts < 3) {
+      try {
+        decodedPath = Uri.decodeFull(decodedPath);
+      } catch (_) {
+        break; // Stop if decoding fails
+      }
+      decodeAttempts++;
+    }
+
+    if (decodedPath.toLowerCase().startsWith('http')) {
+      return Image.network(
+        decodedPath,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+           return const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 24));
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                color: const Color(0xFFE0CFA9),
+                strokeWidth: 2,
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+      );
+    }
+    
+    return Image.asset(
+      path, 
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.image_not_supported, color: Colors.grey, size: 24)),
     );
   }
 }

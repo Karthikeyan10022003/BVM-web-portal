@@ -156,7 +156,14 @@ List<ProductSlot> _generateSlots(int count) {
   }
   return slots;
 }
-
+final Map<String, String> mockAssets = {
+  'Espresso': 'images/espresso.jpg',
+  'Latte': 'images/latte.jpg',
+  'cappuccino': 'images/cappuccino.jpg',
+  'Chocso BytesJD': 'images/chocso_bytes_jd.jpg',
+  'Hot Chocolate': 'images/hot_chocolate.jpg',
+  
+};
 
 // Sample machine data
 final List<MachineData> mockMachines = [

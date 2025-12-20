@@ -5,6 +5,7 @@ import 'mock_data.dart';
 import 'machines_page.dart';
 import 'main_layout.dart';
 
+
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
