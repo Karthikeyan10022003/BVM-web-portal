@@ -26,255 +26,332 @@ class IndividualMachinePage extends StatelessWidget {
       backgroundColor: const Color(0xFF141414),
       body: MainLayout(
         activeTab: 'Machines',
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Breadcrumb / Back Navigation
-              InkWell(
-                onTap: () => Navigator.pop(context),
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.arrow_back, color: Colors.grey[400], size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Back to Machines',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey[400],
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Enhanced Header
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [const Color(0xFF2C2C2C).withOpacity(0.5), const Color(0xFF1E1E1E).withOpacity(0.5)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF333333)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE0CFA9).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE0CFA9).withOpacity(0.3)),
-                      ),
-                      child: const Icon(Icons.coffee_maker, color: Color(0xFFE0CFA9), size: 32),
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+             final bool isMobile = constraints.maxWidth < 600;
+             final double padding = isMobile ? 16 : 32;
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Breadcrumb / Back Navigation
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            children: [
-                              Text(
-                                machine.id,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              _StatusChip(status: machine.status),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(Icons.location_on, color: Colors.grey[400], size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                machine.location,
-                                style: GoogleFonts.inter(
-                                  color: Colors.grey[400],
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(width: 24),
-                              Icon(Icons.circle, color: machine.connectionStatus == 'Online' ? Colors.green : Colors.red, size: 8),
-                              const SizedBox(width: 8),
-                              Text(
-                                machine.connectionStatus,
-                                style: GoogleFonts.inter(
-                                  color: Colors.grey[400],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
+                          Icon(Icons.arrow_back, color: Colors.grey[400], size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Back to Machines',
+                            style: GoogleFonts.inter(
+                              color: Colors.grey[400],
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    // _HeaderActionButton(text: 'View Logs', onTap: () {}),
-                    // const SizedBox(width: 16),
-                    // _HeaderActionButton(
-                    //   text: 'Force Sync', 
-                    //   onTap: () {},
-                    //   isPrimary: true,
-                    // ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Main Content Area
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 1000) {
-                    return Column(
-                      children: [
-                        // Stacked layout for small screens
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Product Slots',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Row(
-                                  children: [
-                                    _Badge(text: 'Total: ${machine.slots.length}', color: const Color(0xFF2C2C2C), textColor: Colors.grey),
-                                    const SizedBox(width: 12),
-                                    _Badge(
-                                        text: '${machine.slots.where((s) => s.status == SlotStatus.empty).length} Empty', 
-                                        color: const Color(0xFF3E1E1E), 
-                                        textColor: const Color(0xFFFF6B6B)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            _ProductSlotsGrid(slots: machine.slots),
-                          ],
-                        ),
-                        const SizedBox(height: 32),
-                        Column(
-                          children: [
-                            _WaterTankWidget(
-                              currentLevel: machine.waterLevel,
-                              maxLevel: machine.maxWaterLevel,
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _StatCard(
-                                    icon: Icons.thermostat,
-                                    iconColor: Colors.orange,
-                                    value: '90 °C',
-                                    label: 'Temperature',
-                                  ),
-                                ),
-                              ],
-                            ),
-                             const SizedBox(height: 24),
-                             if (machine.alerts.isNotEmpty)
-                                _RecentAlertsWidget(alerts: machine.alerts),
-                          ],
-                        ),
-                      ],
-                    );
-                  }
+                  ),
+                  const SizedBox(height: 24),
                   
-                  // Original Row layout for large screens
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 7, 
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Product Slots',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                  // Enhanced Header
+                  LayoutBuilder(
+                    builder: (context, headerConstraints) {
+                      bool isSmallHeader = headerConstraints.maxWidth < 700;
+                      
+                      return Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [const Color(0xFF2C2C2C).withOpacity(0.5), const Color(0xFF1E1E1E).withOpacity(0.5)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF333333)),
+                        ),
+                        child: isSmallHeader 
+                        ? Column(
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             children: [
                                 Row(
                                   children: [
-                                    _Badge(text: 'Total: ${machine.slots.length} Slots', color: const Color(0xFF2C2C2C), textColor: Colors.grey),
-                                    const SizedBox(width: 12),
-                                    _Badge(
-                                        text: '${machine.slots.where((s) => s.status == SlotStatus.empty).length} Empty', 
-                                        color: const Color(0xFF3E1E1E), 
-                                        textColor: const Color(0xFFFF6B6B)),
+                                     Container(
+                                      width: 56,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE0CFA9).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFE0CFA9).withOpacity(0.3)),
+                                      ),
+                                      child: const Icon(Icons.coffee_maker, color: Color(0xFFE0CFA9), size: 28),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                         crossAxisAlignment: CrossAxisAlignment.start,
+                                         children: [
+                                            Text(
+                                              machine.id,
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            _StatusChip(status: machine.status),
+                                         ],
+                                      ),
+                                    )
                                   ],
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
-                            _ProductSlotsGrid(slots: machine.slots),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 32),
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          children: [
-                            _WaterTankWidget(
-                              currentLevel: machine.waterLevel,
-                              maxLevel: machine.maxWaterLevel,
-                            ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _StatCard(
-                                    icon: Icons.thermostat,
-                                    iconColor: Colors.orange,
-                                    value: '90 °C',
-                                    label: 'Temperature',
+                                const SizedBox(height: 24),
+                                Row(
+                                    children: [
+                                      Icon(Icons.location_on, color: Colors.grey[400], size: 16),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          machine.location,
+                                          style: GoogleFonts.inter(
+                                            color: Colors.grey[400],
+                                            fontSize: 14,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.circle, color: machine.connectionStatus == 'Online' ? Colors.green : Colors.red, size: 8),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        machine.connectionStatus,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.grey[400],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                             ],
+                          )
+                        : Row(
+                          children: [
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0CFA9).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE0CFA9).withOpacity(0.3)),
+                              ),
+                              child: const Icon(Icons.coffee_maker, color: Color(0xFFE0CFA9), size: 32),
                             ),
-                            //  const SizedBox(height: 24),
-                            //  if (machine.alerts.isNotEmpty)
-                            //     _RecentAlertsWidget(alerts: machine.alerts),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        machine.id,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      _StatusChip(status: machine.status),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.location_on, color: Colors.grey[400], size: 16),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        machine.location,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.grey[400],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 24),
+                                      Icon(Icons.circle, color: machine.connectionStatus == 'Online' ? Colors.green : Colors.red, size: 8),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        machine.connectionStatus,
+                                        style: GoogleFonts.inter(
+                                          color: Colors.grey[400],
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                    ],
-                  );
-                }
+                      );
+                    }
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Main Content Area
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (constraints.maxWidth < 1000) {
+                        return Column(
+                          children: [
+                            // Stacked layout for small screens
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Product Slots',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        if (constraints.maxWidth > 500) // Hide total badge on very small screens to save space
+                                          _Badge(text: 'Total: ${machine.slots.length}', color: const Color(0xFF2C2C2C), textColor: Colors.grey),
+                                        if (constraints.maxWidth > 500)
+                                          const SizedBox(width: 12),
+                                        _Badge(
+                                            text: '${machine.slots.where((s) => s.status == SlotStatus.empty).length} Empty', 
+                                            color: const Color(0xFF3E1E1E), 
+                                            textColor: const Color(0xFFFF6B6B)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                _ProductSlotsGrid(slots: machine.slots, machineId: machine.index),
+                              ],
+                            ),
+                            const SizedBox(height: 32),
+                            Column(
+                              children: [
+                                _WaterTankWidget(
+                                  currentLevel: machine.waterLevel,
+                                  maxLevel: machine.maxWaterLevel,
+                                ),
+                                const SizedBox(height: 24),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _StatCard(
+                                        icon: Icons.thermostat,
+                                        iconColor: Colors.orange,
+                                        value: '90 °C',
+                                        label: 'Temperature',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                 const SizedBox(height: 24),
+                                 if (machine.alerts.isNotEmpty)
+                                    _RecentAlertsWidget(alerts: machine.alerts),
+                              ],
+                            ),
+                          ],
+                        );
+                      }
+                      
+                      // Original Row layout for large screens
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 7, 
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Product Slots',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Row(
+                                      children: [
+                                        _Badge(text: 'Total: ${machine.slots.length} Slots', color: const Color(0xFF2C2C2C), textColor: Colors.grey),
+                                        const SizedBox(width: 12),
+                                        _Badge(
+                                            text: '${machine.slots.where((s) => s.status == SlotStatus.empty).length} Empty', 
+                                            color: const Color(0xFF3E1E1E), 
+                                            textColor: const Color(0xFFFF6B6B)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                _ProductSlotsGrid(slots: machine.slots, machineId: machine.index),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 32),
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              children: [
+                                _WaterTankWidget(
+                                  currentLevel: machine.waterLevel,
+                                  maxLevel: machine.maxWaterLevel,
+                                ),
+                                const SizedBox(height: 24),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _StatCard(
+                                        icon: Icons.thermostat,
+                                        iconColor: Colors.orange,
+                                        value: '90 °C',
+                                        label: 'Temperature',
+                                      ),
+                                    ),
+                                  ],                                  
+                                ),
+                                //  const SizedBox(height: 24),
+                                //  if (machine.alerts.isNotEmpty)
+                                //     _RecentAlertsWidget(alerts: machine.alerts),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          }
         ),
       ),
     );
@@ -378,8 +455,9 @@ class _Badge extends StatelessWidget {
 
 class _ProductSlotsGrid extends StatefulWidget {
   final List<ProductSlot> slots;
+  final int machineId;
 
-  const _ProductSlotsGrid({required this.slots});
+  const _ProductSlotsGrid({required this.slots, required this.machineId});
 
   @override
   State<_ProductSlotsGrid> createState() => _ProductSlotsGridState();
@@ -397,9 +475,10 @@ class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
     _fetchSlots();
   }
 
+
   Future<void> _fetchSlots() async {
     try {
-      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getSlotDetails'));
+      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getSlotDetails?machineId=${widget.machineId}'));
       print("Data recieved from api"+response.body);
 
       if (response.statusCode == 200) {
@@ -535,6 +614,7 @@ class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
         itemBuilder: (context, index) {
           return _ProductSlotCard(
             slot: _slots[index],
+            machineId: widget.machineId,
             onSlotUpdated: (updatedSlot) => _handleSlotUpdate(index, updatedSlot),
           );
         },
@@ -545,9 +625,10 @@ class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
 
 class _ProductSlotCard extends StatelessWidget {
   final ProductSlot slot;
+  final int machineId;
   final Function(ProductSlot) onSlotUpdated;
 
-  const _ProductSlotCard({required this.slot, required this.onSlotUpdated});
+  const _ProductSlotCard({required this.slot, required this.machineId, required this.onSlotUpdated});
 
   @override
   Widget build(BuildContext context) {
@@ -607,7 +688,7 @@ class _ProductSlotCard extends StatelessWidget {
                         onTap: () async {
                           final result = await showDialog<ProductSlot>(
                             context: context,
-                            builder: (context) => _EditSlotDialog(slot: slot),
+                            builder: (context) => _EditSlotDialog(slot: slot, machineId: machineId),
                           );
                           if (result != null) {
                             onSlotUpdated(result);
@@ -830,68 +911,137 @@ class _WaterTankWidget extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Tank Visual
-              Container(
-                height: 180,
-                width: 80,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111111),
-                  borderRadius: BorderRadius.circular(40),
-                  border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(39),
-                  child: Stack(
-                    alignment: Alignment.bottomCenter,
-                    children: [
-                      // Water
-                      FractionallySizedBox(
-                        heightFactor: percentage / 100,
-                        child: Container(
+          LayoutBuilder(
+            builder: (context, constraints) {
+               // If constrained on mobile, maybe adjust layout of tank
+               bool isSmall = constraints.maxWidth < 350;
+               
+               if (isSmall) {
+                  return Column(
+                     children: [
+                        // Tank Visual
+                        Container(
+                          height: 150,
+                          width: 60,
                           decoration: BoxDecoration(
-                             gradient: LinearGradient(
-                               begin: Alignment.topCenter,
-                               end: Alignment.bottomCenter,
-                               colors: [Colors.blue[400]!, Colors.blue[800]!],
-                             ),
+                            color: const Color(0xFF111111),
+                            borderRadius: BorderRadius.circular(30),
+                            border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4)),
+                            ],
+                          ),
+                           child: ClipRRect(
+                            borderRadius: BorderRadius.circular(30),
+                            child: Stack(
+                              alignment: Alignment.bottomCenter,
+                              children: [
+                                // Water
+                                FractionallySizedBox(
+                                  heightFactor: percentage / 100,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                       gradient: LinearGradient(
+                                         begin: Alignment.topCenter,
+                                         end: Alignment.bottomCenter,
+                                         colors: [Colors.blue[400]!, Colors.blue[800]!],
+                                       ),
+                                    ),
+                                  ),
+                                ),
+                                // Glass reflection shine
+                                 Positioned(
+                                   top: 10, right: 8,
+                                   child: Container(
+                                     height: 30, width: 3,
+                                     decoration: BoxDecoration(
+                                       color: Colors.white.withOpacity(0.1),
+                                       borderRadius: BorderRadius.circular(4),
+                                     ),
+                                   ),
+                                 ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      // Glass reflection shine
-                       Positioned(
-                         top: 10, right: 10,
-                         child: Container(
-                           height: 40, width: 4,
-                           decoration: BoxDecoration(
-                             color: Colors.white.withOpacity(0.1),
-                             borderRadius: BorderRadius.circular(4),
+                        const SizedBox(height: 24),
+                        // Stats
+                        Row(
+                           mainAxisAlignment: MainAxisAlignment.spaceAround,
+                           children: [
+                              _TankStat(label: 'Capacity', value: '${maxLevel.toInt()}L'),
+                              _TankStat(label: 'Current', value: '${currentLevel.toStringAsFixed(1)}L', highlight: true),
+                              _TankStat(label: 'Level', value: '$percentage%'),
+                           ],
+                        )
+                     ],
+                  );
+               }
+
+               return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Tank Visual
+                  Container(
+                    height: 180,
+                    width: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111111),
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(39),
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          // Water
+                          FractionallySizedBox(
+                            heightFactor: percentage / 100,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                 gradient: LinearGradient(
+                                   begin: Alignment.topCenter,
+                                   end: Alignment.bottomCenter,
+                                   colors: [Colors.blue[400]!, Colors.blue[800]!],
+                                 ),
+                              ),
+                            ),
+                          ),
+                          // Glass reflection shine
+                           Positioned(
+                             top: 10, right: 10,
+                             child: Container(
+                               height: 40, width: 4,
+                               decoration: BoxDecoration(
+                                 color: Colors.white.withOpacity(0.1),
+                                 borderRadius: BorderRadius.circular(4),
+                               ),
+                             ),
                            ),
-                         ),
-                       ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  // Stats
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                       _TankStat(label: 'Capacity', value: '${maxLevel.toInt()}L'),
+                       const SizedBox(height: 16),
+                       _TankStat(label: 'Current', value: '${currentLevel.toStringAsFixed(1)}L', highlight: true),
+                       const SizedBox(height: 16),
+                       _TankStat(label: 'Level', value: '$percentage%'),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(width: 24),
-              // Stats
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   _TankStat(label: 'Capacity', value: '${maxLevel.toInt()}L'),
-                   const SizedBox(height: 16),
-                   _TankStat(label: 'Current', value: '${currentLevel.toStringAsFixed(1)}L', highlight: true),
-                   const SizedBox(height: 16),
-                   _TankStat(label: 'Level', value: '$percentage%'),
                 ],
-              ),
-            ],
+              );
+            }
           ),
         ],
       ),
@@ -1046,8 +1196,9 @@ class _RecentAlertsWidget extends StatelessWidget {
 
 class _EditSlotDialog extends StatefulWidget {
   final ProductSlot slot;
+  final int machineId;
 
-  const _EditSlotDialog({required this.slot});
+  const _EditSlotDialog({required this.slot, required this.machineId});
 
   @override
   State<_EditSlotDialog> createState() => _EditSlotDialogState();
@@ -1062,6 +1213,7 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
   late bool _isEnabled;
   XFile? _pickedImageFile;
   String? _stockErrorText;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -1384,8 +1536,12 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                   if (_isSaving) ...[
+                      const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE0CFA9))),
+                      const SizedBox(width: 16),
+                   ],
                   TextButton(
-                     onPressed: () => Navigator.pop(context),
+                     onPressed: _isSaving ? null : () => Navigator.pop(context),
                      style: TextButton.styleFrom(
                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFF333333))),
@@ -1394,20 +1550,62 @@ class _EditSlotDialogState extends State<_EditSlotDialog> {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
-                    onPressed: _stockErrorText != null ? null : () {
-                      // Create updated slot object
-                      final updatedSlot = ProductSlot(
-                        id: widget.slot.id,
-                        name: _nameController.text,
-                        // description: removed not in model
-                        price: double.tryParse(_priceController.text) ?? widget.slot.price,
-                        imageAsset: widget.slot.imageAsset, 
-                        maxStock: _maxCapacity.toInt(),
-                        currentStock: int.tryParse(_stockController.text) ?? widget.slot.currentStock,
-                        status: _isEnabled ? (widget.slot.status == SlotStatus.empty ? SlotStatus.normal : widget.slot.status) : SlotStatus.empty, 
-                        localImagePath: _pickedImageFile?.path ?? widget.slot.localImagePath,
-                      );
-                      Navigator.pop(context, updatedSlot);
+                    onPressed: (_stockErrorText != null || _isSaving) ? null : () async {
+                      setState(() {
+                        _isSaving = true;
+                      });
+
+                      try {
+                        // Prepare payload
+                        final double price = double.tryParse(_priceController.text) ?? widget.slot.price;
+                        final int stock = int.tryParse(_stockController.text) ?? widget.slot.currentStock;
+                        final int maxStock = _maxCapacity.toInt();
+                        
+                        // Simple status logic: if disabled -> Empty, else if stock=0 -> Empty, else Normal
+                        // But wait, the user might want 'error' status? 
+                        // For this edit dialog, let's keep it simple.
+                        final String statusStr = !_isEnabled ? 'Empty' : (stock == 0 ? 'Empty' : 'Normal');
+
+                        final body = {
+                          'machineId': widget.machineId,
+                          'slotId': widget.slot.id,
+                          'name': _nameController.text,
+                          'price': price,
+                          'stock': stock,
+                          'maxStock': maxStock,
+                          'status': statusStr,
+                          'enable': _isEnabled,
+                          // 'localImage': _pickedImageFile?.path // Send this eventually?
+                        };
+
+                        final response = await http.post(
+                          Uri.parse('http://127.0.0.1:5000/api/updateSlot'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: json.encode(body),
+                        );
+
+                        if (response.statusCode == 200) {
+                           // Success
+                           final updatedSlot = ProductSlot(
+                              id: widget.slot.id,
+                              name: _nameController.text,
+                              price: price,
+                              imageAsset: widget.slot.imageAsset, 
+                              maxStock: maxStock,
+                              currentStock: stock,
+                              status: _isEnabled ? (stock == 0 ? SlotStatus.empty : SlotStatus.normal) : SlotStatus.empty, 
+                              localImagePath: _pickedImageFile?.path ?? widget.slot.localImagePath,
+                           );
+                           if (mounted) Navigator.pop(context, updatedSlot);
+                        } else {
+                           // Error
+                           setState(() => _isSaving = false);
+                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving: ${response.statusCode}')));
+                        }
+                      } catch (e) {
+                         setState(() => _isSaving = false);
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFE0CFA9),
@@ -1487,4 +1685,3 @@ class _DialogInput extends StatelessWidget {
     );
   }
 }
- 

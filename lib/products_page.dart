@@ -4,10 +4,58 @@ import 'package:google_fonts/google_fonts.dart';
 import 'mock_data.dart';
 import 'machines_page.dart';
 import 'main_layout.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 
-class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+class ProductsPage extends StatefulWidget {
+  const ProductsPage({super.key});
+
+  @override
+  State<ProductsPage> createState() => _ProductsPageState();
+}
+
+class _ProductsPageState extends State<ProductsPage> {
+  List<dynamic> _products = [];
+  Map<String, dynamic> _stats = {
+    'totalProducts': 0,
+    'avgPrice': 0.0,
+    'lowStock': 0,
+  };
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProducts();
+  }
+
+  Future<void> _fetchProducts() async {
+    try {
+      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getProducts'));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        if (jsonResponse['status'] == 'success') {
+          setState(() {
+            _products = jsonResponse['data']['products'];
+            _stats = jsonResponse['data']['stats'];
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _error = 'Failed to load products: ${response.statusCode}';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error connecting to server: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,26 +67,50 @@ class DashboardPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: const Color(0xFF141414), // Dark background
           body: MainLayout(
-            activeTab: 'Dashboard',
-            child: SingleChildScrollView(
+            activeTab: 'Products',
+            child: _isLoading 
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFFFFDD0)))
+              : _error != null
+                ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
+                : SingleChildScrollView(
               padding: EdgeInsets.all(padding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Dashboard',
+                    Row(
+                        children: [
+                            Text(
+                    'Products Management',
                     style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
+                  ), 
+                const Spacer(),
+                const Icon(Icons.notifications, color: Colors.white),
+                const SizedBox(width: 50),
+                ElevatedButton.icon(
+                onPressed: () {
+                    // Perform an action
+                },
+               
+                icon: const Icon(Icons.add), // The icon widget
+                label: const Text('Add Products'),    // The text label
+                style: ElevatedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    backgroundColor: const Color(0xFFFFFDD0),//cream color
+                ),
+                )
+                        ],
+                    ),
+                 
                 const SizedBox(height: 32),
-                const _StatsRow(),
+                _StatsRow(stats: _stats),
                 const SizedBox(height: 32),
-                const _SalesPerformanceSection(),
+                // child:_buildSearchField(),
                 const SizedBox(height: 32),
-                const _MachinesTable(),
+                _ProductsTable(products: _products),
                 ],
               ),
             ),
@@ -52,73 +124,105 @@ class DashboardPage extends StatelessWidget {
 
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow();
+  final Map<String, dynamic> stats;
+  const _StatsRow({required this.stats});
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 800) {
-           // Mobile/Tablet: Use Wrap or Column
            return Column(
              children: [
                Row(
                  children: [
-                   Expanded(child: _StatCard(title: 'Total Machines', value: '1,204')),
+                   Expanded(child: _StatCard(title: 'Total Products', value: stats['totalProducts'].toString())),
                    const SizedBox(width: 16),
-                   Expanded(child: _StatCard(title: 'Active Machines', value: '1,150', statusColor: Colors.green)),
+                   Expanded(child: _StatCard(title: 'Low Stock', value: stats['lowStock'].toString(), statusColor: Colors.orange)),
+                   Expanded(child: _StatCard(title: 'Avg Price', value: '₹${stats['avgPrice'].toStringAsFixed(2)}')),
                  ],
                ),
                const SizedBox(height: 16),
-               Row(
-                 children: [
-                    Expanded(child: _StatCard(title: 'Inactive Machines', value: '54', statusColor: Colors.orange)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _StatCard(title: 'Users Online', value: '12')),
-                 ],
-               )
              ],
            );
         }
 
-        // Desktop: Row
         return Row(
           children: [
             Expanded(
               child: _StatCard(
-                title: 'Total Machines',
-                value: '1,204',
+                title: 'Total Products',
+                value: stats['totalProducts'].toString(),
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _StatCard(
-                title: 'Active Machines',
-                value: '1,150',
-                statusColor: Colors.green,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _StatCard(
-                title: 'Inactive Machines',
-                value: '54',
+                title: 'Low Stock',
+                value: stats['lowStock'].toString(),
                 statusColor: Colors.orange,
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: _StatCard(
-                title: 'Users Online',
-                value: '12',
+                title: 'Avg Price',
+                value: '₹${stats['avgPrice'].toStringAsFixed(2)}',
               ),
             ),
+            const SizedBox(width: 16),
           ],
         );
       },
     );
   }
 }
+// Widget _buildSearchField() {
+//     return TextField(
+//       controller: _searchController,
+//       onChanged: (value) {
+//         setState(() {
+//           _searchQuery = value;
+//         });
+//       },
+//       style: GoogleFonts.inter(
+//         color: Colors.white,
+//         fontSize: 14,
+//       ),
+//       decoration: InputDecoration(
+//         hintText: 'Search by machine ID, location, or model...',
+//         hintStyle: GoogleFonts.inter(
+//           color: Colors.grey[600],
+//           fontSize: 14,
+//         ),
+//         prefixIcon: Icon(
+//           Icons.search,
+//           color: Colors.grey[600],
+//           size: 20,
+//         ),
+//         suffixIcon: _searchQuery.isNotEmpty
+//             ? IconButton(
+//                 icon: Icon(
+//                   Icons.clear,
+//                   color: Colors.grey[600],
+//                   size: 20,
+//                 ),
+//                 onPressed: () {
+//                   _searchController.clear();
+//                   setState(() {
+//                     _searchQuery = '';
+//                   });
+//                 },
+//               )
+//             : null,
+//         border: InputBorder.none,
+//         contentPadding: const EdgeInsets.symmetric(
+//           horizontal: 16,
+//           vertical: 12,
+//         ),
+//       ),
+//     );
+//   }
 
 class _StatCard extends StatelessWidget {
   final String title;
@@ -183,7 +287,7 @@ class _SalesPerformanceSection extends StatelessWidget {
   const _SalesPerformanceSection();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) { 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -710,8 +814,9 @@ class _LegendItem extends StatelessWidget {
   }
 }
 
-class _MachinesTable extends StatelessWidget {
-  const _MachinesTable();
+class _ProductsTable extends StatelessWidget {
+  final List<dynamic> products;
+  const _ProductsTable({required this.products});
 
   @override
   Widget build(BuildContext context) {
@@ -719,7 +824,7 @@ class _MachinesTable extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Top Performing Machines',
+          'Product Master List',
           style: GoogleFonts.inter(
             color: Colors.white,
             fontSize: 20,
@@ -730,7 +835,6 @@ class _MachinesTable extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final double minWidth = 800;
-            // Ensure width is at least minWidth even if screen is smaller, enabling horizontal scroll
             final double contentWidth = constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
 
             return Container(
@@ -746,22 +850,20 @@ class _MachinesTable extends StatelessWidget {
                   child: Column(
                     children: [
                       const _TableHeader(),
-                      ...(List<MachineData>.from(mockMachines)
-                        ..sort((a, b) => b.sales.compareTo(a.sales)))
-                        .take(5).toList().asMap().entries.map((entry) {
-                           final machine = entry.value;
-                           Color statusColor = Colors.red;
-                           if (machine.status.toLowerCase() == 'online') statusColor = Colors.green;
-                           if (machine.status.toLowerCase().contains('offline')) statusColor = Colors.orange;
-                           
+                      if (products.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(24.0),
+                          child: Text('No products found', style: TextStyle(color: Colors.grey)),
+                        )
+                      else
+                        ...products.map((product) {
                            return Column(
                             children: [
                                _TableRow(
-                                id: machine.id,
-                                location: machine.location,
-                                status: machine.status,
-                                sales: machine.sales.toStringAsFixed(2),
-                                statusColor: statusColor,
+                                id: product['product_id'] ?? 'N/A',
+                                name: product['product_name'] ?? 'Unknown',
+                                cost: '₹${((product['product_cost'] ?? 0) / 100).toStringAsFixed(2)}',
+                                image: product['product_image'] ?? '',
                               ),
                               const Divider(height: 1, color: Color(0xFF333333)),
                             ],
@@ -788,10 +890,10 @@ class _TableHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Row(
         children: [
-          Expanded(flex: 2, child: _HeaderCell('MACHINE ID')),
-          Expanded(flex: 3, child: _HeaderCell('LOCATION')),
-          Expanded(flex: 2, child: _HeaderCell('STATUS')),
-          Expanded(flex: 2, child: _HeaderCell('TOTAL SALES (30D)', alignRight: true)),
+          Expanded(flex: 2, child: _HeaderCell('PRODUCT ID')),
+          Expanded(flex: 1, child: _HeaderCell('IMAGE')),
+          Expanded(flex: 3, child: _HeaderCell('NAME')),
+          Expanded(flex: 2, child: _HeaderCell('COST', alignRight: true)),
         ],
       ),
     );
@@ -820,17 +922,15 @@ class _HeaderCell extends StatelessWidget {
 
 class _TableRow extends StatelessWidget {
   final String id;
-  final String location;
-  final String status;
-  final String sales;
-  final Color statusColor;
+  final String name;
+  final String cost;
+  final String image;
 
   const _TableRow({
     required this.id,
-    required this.location,
-    required this.status,
-    required this.sales,
-    required this.statusColor,
+    required this.name,
+    required this.cost,
+    required this.image,
   });
 
   @override
@@ -850,39 +950,33 @@ class _TableRow extends StatelessWidget {
             ),
           ),
           Expanded(
+            flex: 1,
+            child: image.isNotEmpty 
+              ? SizedBox(
+                  height: 40,
+                  width: 40,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: Image.network(
+                      image, 
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
+                  ),
+                )
+              : const Icon(Icons.image_not_supported, color: Colors.grey),
+          ),
+          Expanded(
             flex: 3,
             child: Text(
-              location,
+              name,
               style: GoogleFonts.inter(color: Colors.grey[300]),
             ),
           ),
           Expanded(
             flex: 2,
-            child: Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  status,
-                  style: GoogleFonts.inter(
-                    color: statusColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
             child: Text(
-              sales,
+              cost,
               textAlign: TextAlign.right,
               style: GoogleFonts.inter(
                 color: Colors.white,

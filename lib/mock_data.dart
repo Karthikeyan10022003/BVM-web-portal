@@ -97,6 +97,31 @@ enum AlertType {
   info,
 }
 
+// Transaction Data Model
+class TransactionData {
+  final String id;
+  final String machineId;
+  final String product;
+  final String productImage;
+  final String date;
+  final String time;
+  final double amount;
+  final String paymentMethod;
+  final String status;
+
+  TransactionData({
+    required this.id,
+    required this.machineId,
+    required this.product,
+    required this.productImage,
+    required this.date,
+    required this.time,
+    required this.amount,
+    required this.paymentMethod,
+    required this.status,
+  });
+}
+
 // Helper to generate slots
 List<ProductSlot> _generateSlots(int count) {
   final List<ProductSlot> slots = [];
@@ -118,23 +143,6 @@ List<ProductSlot> _generateSlots(int count) {
     int max = 10;
     SlotStatus status = SlotStatus.normal;
 
-    // if (name == 'Blueberry Bar') {
-    //   stock = 8;
-    //   max = 10;
-    // }
-    // if (id == 'A4') {
-    //     name = 'Potato Chips';
-    //     stock = 1;
-    //     max = 10;
-    //     status = SlotStatus.error; // Just to show the warning icon
-    // }
-    // if (id == 'B4') {
-    //     name = 'Empty Slot';
-    //     stock = 0;
-    //     status = SlotStatus.empty;
-    // }
-
-    // Asset mapping
     String assetPath = '';
     if (name.toLowerCase().contains('espresso')) {
       assetPath = 'assets/images/espresso.jpg';
@@ -183,7 +191,7 @@ final List<MachineData> mockMachines = [
     stockLevel: 85,
   ),
   MachineData(
-    index: 223,
+    index: 219,
     id: '2VE0000219',
     model: 'VENT22INEC',
     description: '22 Inch Spring MAchine',
@@ -290,5 +298,86 @@ final List<DashboardMachineData> dashboardTopMachines = [
     status: 'Active',
     sales: '1,792.00',
     statusColor: Colors.green,
+  ),
+];
+
+// Mock Transactions Data
+final List<TransactionData> mockTransactions = [
+  TransactionData(
+    id: 'TXN-902341',
+    machineId: '2VE0000224',
+    product: 'Espresso',
+    productImage: 'assets/images/espresso.jpg',
+    date: 'Oct 30, 2023',
+    time: '14:24 PM',
+    amount: 45.00,
+    paymentMethod: 'UPI',
+    status: 'Completed',
+  ),
+  TransactionData(
+    id: 'TXN-902339',
+    machineId: '2VE0000219',
+    product: 'Caffè Latte',
+    productImage: 'assets/images/latte.jpg',
+    date: 'Oct 30, 2023',
+    time: '13:10 PM',
+    amount: 65.00,
+    paymentMethod: 'Cash',
+    status: 'Completed',
+  ),
+  TransactionData(
+    id: 'TXN-902335',
+    machineId: '2VE0000222',
+    product: 'Hot Chocolate',
+    productImage: 'assets/images/hot_chocolate.jpg',
+    date: 'Oct 30, 2023',
+    time: '12:45 PM',
+    amount: 55.00,
+    paymentMethod: 'Card',
+    status: 'Failed',
+  ),
+  TransactionData(
+    id: 'TXN-902331',
+    machineId: 'IVE0000221',
+    product: 'Cappuccino',
+    productImage: 'assets/images/cappuccino.jpg',
+    date: 'Oct 30, 2023',
+    time: '11:55 AM',
+    amount: 75.00,
+    paymentMethod: 'UPI',
+    status: 'Refunded',
+  ),
+  TransactionData(
+    id: 'TXN-902328',
+    machineId: '2VE0000224',
+    product: 'Espresso',
+    productImage: 'assets/images/espresso.jpg',
+    date: 'Oct 29, 2023',
+    time: '18:12 PM',
+    amount: 45.00,
+    paymentMethod: 'Card',
+    status: 'Completed',
+  ),
+  TransactionData(
+    id: 'TXN-902325',
+    machineId: '2VE0000219',
+    product: 'Caffè Latte',
+    productImage: 'assets/images/latte.jpg',
+    date: 'Oct 29, 2023',
+    time: '17:40 PM',
+    amount: 65.00,
+    paymentMethod: 'UPI',
+    status: 'Completed',
+  ),
+  TransactionData(
+    id: 'TXN-902320',
+    machineId: '2VE0000222',
+    product: 'Hot Chocolate',
+    productImage: 'assets/images/hot_chocolate.jpg',
+    date: 'Oct 29, 2023',
+    time: '15:20 PM',
+    amount: 55.00,
+    paymentMethod: 'Cash',
+    status: 'Completed',
   ),
 ];

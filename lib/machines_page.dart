@@ -38,140 +38,215 @@ class _MachinesPageState extends State<MachinesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF141414),
-      body: MainLayout(
-        activeTab: 'Machines',
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Text(
-                'Machines',
-                style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 32),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 600;
+        final double padding = isMobile ? 16 : 32;
 
-              // Search bar and view toggle
-              Row(
+        return Scaffold(
+          backgroundColor: const Color(0xFF141414),
+          body: MainLayout(
+            activeTab: 'Machines',
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(padding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF333333)),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search by machine ID, location, or model...',
-                          hintStyle: GoogleFonts.inter(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: Colors.grey[600],
-                            size: 20,
-                          ),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(
-                                    Icons.clear,
-                                    color: Colors.grey[600],
-                                    size: 20,
+                  // Header
+                  Text(
+                    'Machines',
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Search bar and view toggle
+                  LayoutBuilder(
+                    builder: (context, boxConstraints) {
+                       if (boxConstraints.maxWidth < 500) {
+                         // Stack on very small screens
+                         return Column(
+                           children: [
+                             Container(
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E1E1E),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF333333)),
+                                ),
+                                child: _buildSearchField(),
+                             ),
+                             const SizedBox(height: 16),
+                             Row(
+                               mainAxisAlignment: MainAxisAlignment.end,
+                               children: [
+                                  // View toggle buttons
+                                  Container(
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1E1E1E),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFF333333)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _ViewToggleButton(
+                                          icon: Icons.grid_view,
+                                          isActive: _isGridView,
+                                          onTap: () {
+                                            setState(() {
+                                              _isGridView = true;
+                                            });
+                                          },
+                                        ),
+                                        Container(
+                                          width: 1,
+                                          height: 32,
+                                          color: const Color(0xFF333333),
+                                        ),
+                                        _ViewToggleButton(
+                                          icon: Icons.view_list,
+                                          isActive: !_isGridView,
+                                          onTap: () {
+                                            setState(() {
+                                              _isGridView = false;
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  onPressed: () {
-                                    _searchController.clear();
+                               ],
+                             )
+                           ],
+                         );
+                       }
+
+                       return Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E1E1E),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF333333)),
+                              ),
+                              child: _buildSearchField(),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // View toggle buttons
+                          Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E1E1E),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF333333)),
+                            ),
+                            child: Row(
+                              children: [
+                                _ViewToggleButton(
+                                  icon: Icons.grid_view,
+                                  isActive: _isGridView,
+                                  onTap: () {
                                     setState(() {
-                                      _searchQuery = '';
+                                      _isGridView = true;
                                     });
                                   },
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 32,
+                                  color: const Color(0xFF333333),
+                                ),
+                                _ViewToggleButton(
+                                  icon: Icons.view_list,
+                                  isActive: !_isGridView,
+                                  onTap: () {
+                                    setState(() {
+                                      _isGridView = false;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
+                        ],
+                      );
+                    }
+                  ),
+                  
+                  const SizedBox(height: 24),
+
+                  // Results count
+                  Text(
+                    '${_filteredMachines.length} machine${_filteredMachines.length != 1 ? 's' : ''} found',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey[400],
+                      fontSize: 14,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  // View toggle buttons
-                  Container(
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF333333)),
-                    ),
-                    child: Row(
-                      children: [
-                        _ViewToggleButton(
-                          icon: Icons.grid_view,
-                          isActive: _isGridView,
-                          onTap: () {
-                            setState(() {
-                              _isGridView = true;
-                            });
-                          },
-                        ),
-                        Container(
-                          width: 1,
-                          height: 32,
-                          color: const Color(0xFF333333),
-                        ),
-                        _ViewToggleButton(
-                          icon: Icons.view_list,
-                          isActive: !_isGridView,
-                          onTap: () {
-                            setState(() {
-                              _isGridView = false;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: 24),
+
+                  // Machines display
+                  _isGridView
+                      ? _buildGridView()
+                      : _buildListView(),
                 ],
               ),
-              const SizedBox(height: 24),
-
-              // Results count
-              Text(
-                '${_filteredMachines.length} machine${_filteredMachines.length != 1 ? 's' : ''} found',
-                style: GoogleFonts.inter(
-                  color: Colors.grey[400],
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Machines display
-              _isGridView
-                  ? _buildGridView()
-                  : _buildListView(),
-            ],
+            ),
           ),
+        );
+      }
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      onChanged: (value) {
+        setState(() {
+          _searchQuery = value;
+        });
+      },
+      style: GoogleFonts.inter(
+        color: Colors.white,
+        fontSize: 14,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Search by machine ID, location, or model...',
+        hintStyle: GoogleFonts.inter(
+          color: Colors.grey[600],
+          fontSize: 14,
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Colors.grey[600],
+          size: 20,
+        ),
+        suffixIcon: _searchQuery.isNotEmpty
+            ? IconButton(
+                icon: Icon(
+                  Icons.clear,
+                  color: Colors.grey[600],
+                  size: 20,
+                ),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                },
+              )
+            : null,
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
         ),
       ),
     );
@@ -205,7 +280,7 @@ class _MachinesPageState extends State<MachinesPage> {
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 3000),
+          constraints: const BoxConstraints(minWidth: 1000), // Adjusted min width
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -622,7 +697,3 @@ class _HeaderCell extends StatelessWidget {
     );
   }
 }
-
-// Data model
-// Updated to match the requested image structure + legacy fields for Grid View
-// Data model in mock_data.dart
