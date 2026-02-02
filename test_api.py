@@ -12,7 +12,7 @@ CORS(app)
 # Initialize Firebase Admin SDK
 # Note: serviceAccountKey.json must be in the same directory
 try:
-    cred = credentials.Certificate("firebaseData.json")
+    cred = credentials.Certificate("bvm_db_key.json")
     firebase_admin.initialize_app(cred)
     db = firestore.client()
     print("Firebase initialized successfully")
