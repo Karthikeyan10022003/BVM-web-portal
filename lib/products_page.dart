@@ -33,7 +33,7 @@ class _ProductsPageState extends State<ProductsPage> {
 
   Future<void> _fetchProducts() async {
     try {
-      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getProducts'));
+      final response = await http.get(Uri.parse('https://bvm-web-portal.onrender.com/api/getProducts'));
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = json.decode(response.body);
         if (jsonResponse['status'] == 'success') {
