@@ -5,7 +5,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'main_layout.dart';
-// import 'mock_data.dart'; // No longer needed for transactions
+import 'package:excel/excel.dart' hide Border;
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+// For web download support
+import 'dart:html' as html;
 
 class TransactionModel {
   final String id;
@@ -67,6 +71,11 @@ class _TransactionsPageState extends State<TransactionsPage> {
   String? _errorMessage;
   int _currentPage = 1;
   static const int _pageSize = 15;
+
+  // Filter States
+  String _dateFilter = 'All Time';
+  String _statusFilter = 'All Status';
+  DateTimeRange? _customDateRange;
 
   @override
   void initState() {
@@ -208,7 +217,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
             ),
              const SizedBox(width: 16),
             ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: _exportToExcel,
               icon: const Icon(Icons.download, color: Colors.black, size: 20),
               label: Text(
                 'Export Report',
@@ -397,46 +406,56 @@ class _TransactionsPageState extends State<TransactionsPage> {
           ),
         ),
         const SizedBox(width: 16),
-        Container(
-           height: 48,
-           padding: const EdgeInsets.symmetric(horizontal: 16),
-           decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF333333)),
-            ),
-            child: Row(
-               children: [
-                 Icon(Icons.calendar_today, color: Colors.grey[400], size: 16),
-                 const SizedBox(width: 8),
-                 Text(
-                   'All Time', // Dynamic?
-                   style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                 ),
-                 const SizedBox(width: 8),
-                 Icon(Icons.keyboard_arrow_down, color: Colors.grey[400], size: 16),
-               ],
-            ),
+        InkWell(
+          onTap: _showDateFilterMenu,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF333333)),
+              ),
+              child: Row(
+                 children: [
+                   Icon(Icons.calendar_today, color: Colors.grey[400], size: 16),
+                   const SizedBox(width: 8),
+                   Text(
+                     _dateFilter,
+                     style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                   ),
+                   const SizedBox(width: 8),
+                   Icon(Icons.keyboard_arrow_down, color: Colors.grey[400], size: 16),
+                 ],
+              ),
+          ),
         ),
         const SizedBox(width: 16),
-        Container(
-           height: 48,
-           padding: const EdgeInsets.symmetric(horizontal: 16),
-           decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF333333)),
-            ),
-            child: Row(
-               children: [
-                 Icon(Icons.filter_list, color: Colors.grey[400], size: 16),
-                 const SizedBox(width: 8),
-                 Text(
-                   'Filters',
-                   style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                 ),
-               ],
-            ),
+        InkWell(
+          onTap: _showStatusFilterMenu,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+             height: 48,
+             padding: const EdgeInsets.symmetric(horizontal: 16),
+             decoration: BoxDecoration(
+                color: const Color(0xFF1E1E1E),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF333333)),
+              ),
+              child: Row(
+                 children: [
+                   Icon(Icons.filter_list, color: Colors.grey[400], size: 16),
+                   const SizedBox(width: 8),
+                   Text(
+                     _statusFilter,
+                     style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
+                   ),
+                   const SizedBox(width: 8),
+                   Icon(Icons.keyboard_arrow_down, color: Colors.grey[400], size: 16),
+                 ],
+              ),
+          ),
         ),
       ],
      );
@@ -445,10 +464,33 @@ class _TransactionsPageState extends State<TransactionsPage> {
   Widget _buildTransactionTable() {
     // Filter logic
     final filter = _searchController.text.toLowerCase();
+    final now = DateTime.now();
+    
     final filtered = _transactions.where((t) {
-        return t.id.toLowerCase().contains(filter) || 
+        // Search Filter
+        bool matchesSearch = t.id.toLowerCase().contains(filter) || 
                t.machineId.toLowerCase().contains(filter) ||
                t.product.toLowerCase().contains(filter);
+        
+        // Status Filter
+        bool matchesStatus = _statusFilter == 'All Status' || t.status.toUpperCase() == _statusFilter.toUpperCase();
+        
+        // Date Filter
+        bool matchesDate = true;
+        if (_dateFilter == 'Today') {
+            matchesDate = t.date.year == now.year && t.date.month == now.month && t.date.day == now.day;
+        } else if (_dateFilter == 'Yesterday') {
+            final yesterday = now.subtract(const Duration(days: 1));
+            matchesDate = t.date.year == yesterday.year && t.date.month == yesterday.month && t.date.day == yesterday.day;
+        } else if (_dateFilter == 'Last 7 Days') {
+            matchesDate = t.date.isAfter(now.subtract(const Duration(days: 7)));
+        } else if (_dateFilter == 'Last 30 Days') {
+            matchesDate = t.date.isAfter(now.subtract(const Duration(days: 30)));
+        } else if (_dateFilter == 'Custom Range' && _customDateRange != null) {
+            matchesDate = t.date.isAfter(_customDateRange!.start) && t.date.isBefore(_customDateRange!.end.add(const Duration(days: 1)));
+        }
+        
+        return matchesSearch && matchesStatus && matchesDate;
     }).toList();
 
     return Container(
@@ -459,12 +501,30 @@ class _TransactionsPageState extends State<TransactionsPage> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Filter logic
+          // Filter logic (repeated for pagination calculation inside layout builder if needed, usually better to calculate once)
+          // Using the same filtered list from above outside layout builder is cleaner if scope allows
+          // but let's keep it consistent with the existing structure.
           final filter = _searchController.text.toLowerCase();
+          final now = DateTime.now();
           final filtered = _transactions.where((t) {
-              return t.id.toLowerCase().contains(filter) || 
+              bool matchesSearch = t.id.toLowerCase().contains(filter) || 
                      t.machineId.toLowerCase().contains(filter) ||
                      t.product.toLowerCase().contains(filter);
+              bool matchesStatus = _statusFilter == 'All Status' || t.status.toUpperCase() == _statusFilter.toUpperCase();
+              bool matchesDate = true;
+              if (_dateFilter == 'Today') {
+                  matchesDate = t.date.year == now.year && t.date.month == now.month && t.date.day == now.day;
+              } else if (_dateFilter == 'Yesterday') {
+                  final yesterday = now.subtract(const Duration(days: 1));
+                  matchesDate = t.date.year == yesterday.year && t.date.month == yesterday.month && t.date.day == yesterday.day;
+              } else if (_dateFilter == 'Last 7 Days') {
+                  matchesDate = t.date.isAfter(now.subtract(const Duration(days: 7)));
+              } else if (_dateFilter == 'Last 30 Days') {
+                  matchesDate = t.date.isAfter(now.subtract(const Duration(days: 30)));
+              } else if (_dateFilter == 'Custom Range' && _customDateRange != null) {
+                  matchesDate = t.date.isAfter(_customDateRange!.start) && t.date.isBefore(_customDateRange!.end.add(const Duration(days: 1)));
+              }
+              return matchesSearch && matchesStatus && matchesDate;
           }).toList();
 
           final int totalItems = filtered.length;
@@ -655,10 +715,26 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
   Widget _buildPagination() {
     final filter = _searchController.text.toLowerCase();
+    final now = DateTime.now();
     final filtered = _transactions.where((t) {
-        return t.id.toLowerCase().contains(filter) || 
+        bool matchesSearch = t.id.toLowerCase().contains(filter) || 
                t.machineId.toLowerCase().contains(filter) ||
                t.product.toLowerCase().contains(filter);
+        bool matchesStatus = _statusFilter == 'All Status' || t.status.toUpperCase() == _statusFilter.toUpperCase();
+        bool matchesDate = true;
+        if (_dateFilter == 'Today') {
+            matchesDate = t.date.year == now.year && t.date.month == now.month && t.date.day == now.day;
+        } else if (_dateFilter == 'Yesterday') {
+            final yesterday = now.subtract(const Duration(days: 1));
+            matchesDate = t.date.year == yesterday.year && t.date.month == yesterday.month && t.date.day == yesterday.day;
+        } else if (_dateFilter == 'Last 7 Days') {
+            matchesDate = t.date.isAfter(now.subtract(const Duration(days: 7)));
+        } else if (_dateFilter == 'Last 30 Days') {
+            matchesDate = t.date.isAfter(now.subtract(const Duration(days: 30)));
+        } else if (_dateFilter == 'Custom Range' && _customDateRange != null) {
+            matchesDate = t.date.isAfter(_customDateRange!.start) && t.date.isBefore(_customDateRange!.end.add(const Duration(days: 1)));
+        }
+        return matchesSearch && matchesStatus && matchesDate;
     }).toList();
 
     final int totalItems = filtered.length;
@@ -706,5 +782,178 @@ class _TransactionsPageState extends State<TransactionsPage> {
         )
       ],
     );
+  }
+
+  void _showDateFilterMenu() {
+    final List<String> options = ['All Time', 'Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Custom Range'];
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position.shift(const Offset(400, 450)), // Rough adjustment for position
+      color: const Color(0xFF1E1E1E),
+      items: options.map((String choice) {
+        return PopupMenuItem<String>(
+          value: choice,
+          child: Text(choice, style: const TextStyle(color: Colors.white)),
+        );
+      }).toList(),
+    ).then((String? newValue) async {
+       if (newValue == 'Custom Range') {
+         final DateTimeRange? picked = await showDateRangePicker(
+           context: context,
+           firstDate: DateTime(2020),
+           lastDate: DateTime.now(),
+           builder: (context, child) {
+             return Theme(
+               data: Theme.of(context).copyWith(
+                 colorScheme: const ColorScheme.dark(
+                   primary: Color(0xFFE0CFA9),
+                   onPrimary: Colors.black,
+                   surface: Color(0xFF1E1E1E),
+                   onSurface: Colors.white,
+                 ),
+               ),
+               child: child!,
+             );
+           },
+         );
+         if (picked != null) {
+           setState(() {
+             _dateFilter = 'Custom Range';
+             _customDateRange = picked;
+             _currentPage = 1;
+           });
+         }
+       } else if (newValue != null) {
+         setState(() {
+           _dateFilter = newValue;
+           _customDateRange = null;
+           _currentPage = 1;
+         });
+       }
+    });
+  }
+
+  void _showStatusFilterMenu() {
+    final List<String> options = ['All Status', 'Success', 'Failure', 'Refunded'];
+    final RenderBox button = context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        button.localToGlobal(Offset.zero, ancestor: overlay),
+        button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
+      ),
+      Offset.zero & overlay.size,
+    );
+
+    showMenu<String>(
+      context: context,
+      position: position.shift(const Offset(600, 450)), // Rough adjustment for position
+      color: const Color(0xFF1E1E1E),
+      items: options.map((String choice) {
+        return PopupMenuItem<String>(
+          value: choice,
+          child: Text(choice, style: const TextStyle(color: Colors.white)),
+        );
+      }).toList(),
+    ).then((String? newValue) {
+       if (newValue != null) {
+         setState(() {
+           _statusFilter = newValue;
+           _currentPage = 1;
+         });
+       }
+    });
+  }
+
+  Future<void> _exportToExcel() async {
+    // Get the filtered list for export
+    final filter = _searchController.text.toLowerCase();
+    final now = DateTime.now();
+    final filtered = _transactions.where((t) {
+        bool matchesSearch = t.id.toLowerCase().contains(filter) || 
+               t.machineId.toLowerCase().contains(filter) ||
+               t.product.toLowerCase().contains(filter);
+        bool matchesStatus = _statusFilter == 'All Status' || t.status.toUpperCase() == _statusFilter.toUpperCase();
+        bool matchesDate = true;
+        if (_dateFilter == 'Today') {
+            matchesDate = t.date.year == now.year && t.date.month == now.month && t.date.day == now.day;
+        } else if (_dateFilter == 'Yesterday') {
+            final yesterday = now.subtract(const Duration(days: 1));
+            matchesDate = t.date.year == yesterday.year && t.date.month == yesterday.month && t.date.day == yesterday.day;
+        } else if (_dateFilter == 'Last 7 Days') {
+            matchesDate = t.date.isAfter(now.subtract(const Duration(days: 7)));
+        } else if (_dateFilter == 'Last 30 Days') {
+            matchesDate = t.date.isAfter(now.subtract(const Duration(days: 30)));
+        } else if (_dateFilter == 'Custom Range' && _customDateRange != null) {
+            matchesDate = t.date.isAfter(_customDateRange!.start) && t.date.isBefore(_customDateRange!.end.add(const Duration(days: 1)));
+        }
+        return matchesSearch && matchesStatus && matchesDate;
+    }).toList();
+
+    if (filtered.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data to export')),
+      );
+      return;
+    }
+
+    var excel = Excel.createExcel();
+    Sheet sheetObject = excel['Transactions'];
+    excel.delete('Sheet1'); // Remove default sheet
+
+    // Add Header
+    sheetObject.appendRow([
+      TextCellValue('Transaction ID'),
+      TextCellValue('Machine ID'),
+      TextCellValue('Product'),
+      TextCellValue('Date'),
+      TextCellValue('Time'),
+      TextCellValue('Amount (₹)'),
+      TextCellValue('Payment Method'),
+      TextCellValue('Status'),
+    ]);
+
+    // Add Data
+    for (var txn in filtered) {
+      sheetObject.appendRow([
+        TextCellValue(txn.id),
+        TextCellValue(txn.machineId),
+        TextCellValue(txn.product),
+        TextCellValue(DateFormat('yyyy-MM-dd').format(txn.date)),
+        TextCellValue(DateFormat('hh:mm a').format(txn.date)),
+        DoubleCellValue(txn.amount),
+        TextCellValue(txn.paymentMethod),
+        TextCellValue(txn.status),
+      ]);
+    }
+
+    var fileBytes = excel.save();
+    
+    if (fileBytes != null) {
+      if (kIsWeb) {
+        // Use dart:html for web download
+        final content = base64Encode(fileBytes);
+        final anchor = html.AnchorElement(
+            href: "data:application/octet-stream;charset=utf-16le;base64,$content")
+          ..setAttribute("download", "transactions_report_${DateFormat('yyyyMMdd').format(DateTime.now())}.xlsx")
+          ..click();
+      } else {
+        // Handle mobile/desktop saving if needed
+        // For now, since it's a web portal, web implementation is primary.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Exporting for mobile/desktop not fully implemented here.')),
+        );
+      }
+    }
   }
 }
