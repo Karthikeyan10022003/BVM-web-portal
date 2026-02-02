@@ -84,7 +84,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
     try {
       // Use 127.0.0.1 for local/emulator, or localhost for web
       // Adjust port if needed
-      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getSalesData'));
+      final response = await http.get(Uri.parse('https://bvm-web-portal.onrender.com/api/getSalesData'));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
