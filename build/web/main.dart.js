@@ -38783,7 +38783,7 @@ w1(){var s=0,r=A.O(t.H),q=1,p,o=this,n,m,l,k,j,i,h,g
 var $async$w1=A.P(function(a,b){if(a===1){p=b
 s=q}while(true)switch(s){case 0:q=3
 s=6
-return A.Q(A.awT(A.eE("http://127.0.0.1:5000/api/getSlotDetails?machineId="+o.a.d,0,null)),$async$w1)
+return A.Q(A.awT(A.eE("https://bvm-web-portal.onrender.com/api/getSlotDetails?machineId="+o.a.d,0,null)),$async$w1)
 case 6:n=b
 i=n
 A.lO("Data recieved from api"+A.asH(A.arH(i.e)).e3(i.w))
@@ -39515,7 +39515,7 @@ w0(){var s=0,r=A.O(t.H),q=1,p,o=this,n,m,l,k,j,i
 var $async$w0=A.P(function(a,b){if(a===1){p=b
 s=q}while(true)switch(s){case 0:q=3
 s=6
-return A.Q(A.awT(A.eE("http://127.0.0.1:5000/api/getProducts",0,null)),$async$w0)
+return A.Q(A.awT(A.eE("https://bvm-web-portal.onrender.com/api/getProducts",0,null)),$async$w0)
 case 6:n=b
 if(n.b===200){k=n
 m=B.c6.e3(A.asH(A.arH(k.e)).e3(k.w))
@@ -39626,7 +39626,7 @@ var $async$w2=A.P(function(a,b){if(a===1){p=b
 s=q}while(true)switch(s){case 0:o.a_(new A.aqQ(o))
 q=3
 s=6
-return A.Q(A.awT(A.eE("http://127.0.0.1:5000/api/getSalesData",0,null)),$async$w2)
+return A.Q(A.awT(A.eE("https://bvm-web-portal.onrender.com/api/getSalesData",0,null)),$async$w2)
 case 6:n=b
 if(n.b===200){j=n
 m=B.c6.e3(A.asH(A.arH(j.e)).e3(j.w))
