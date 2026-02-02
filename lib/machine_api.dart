@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'mock_data.dart';
 
 class MachineApiService {
-  static const String baseUrl = "http://10.0.2.2:5000";
+  static const String baseUrl = "https://bvm-web-portal.onrender.com";
 
   static Future<List<MachineData>> fetchMachines() async {
     final response = await http.get(
