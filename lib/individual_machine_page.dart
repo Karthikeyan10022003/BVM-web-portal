@@ -478,7 +478,7 @@ class _ProductSlotsGridState extends State<_ProductSlotsGrid> {
 
   Future<void> _fetchSlots() async {
     try {
-      final response = await http.get(Uri.parse('http://127.0.0.1:5000/api/getSlotDetails?machineId=${widget.machineId}'));
+      final response = await http.get(Uri.parse('https://bvm-web-portal.onrender.com/api/getSlotDetails?machineId=${widget.machineId}'));
       print("Data recieved from api"+response.body);
 
       if (response.statusCode == 200) {
