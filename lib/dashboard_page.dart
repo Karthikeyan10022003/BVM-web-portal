@@ -153,9 +153,8 @@ class _StatsRow extends StatelessWidget {
                const SizedBox(height: 16),
                Row(
                  children: [
-                    Expanded(child: _StatCard(title: 'Active Machines', value: '1,150', statusColor: Colors.green)),
-                    const SizedBox(width: 16),
-                    Expanded(child: _StatCard(title: 'Users Online', value: '12')),
+                    Expanded(child: _StatCard(title: 'Active Machines', value: '1', statusColor: Colors.green)),
+                 
                  ],
                )
              ],
