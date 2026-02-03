@@ -3,6 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'mock_data.dart';
 import 'individual_machine_page.dart';
 import 'main_layout.dart';
+import 'transaction_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
 
 class MachinesPage extends StatefulWidget {
   const MachinesPage({super.key});
@@ -15,6 +19,48 @@ class _MachinesPageState extends State<MachinesPage> {
   bool _isGridView = true;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  List<TransactionModel> _allTransactions = [];
+  bool _isLoadingTransactions = true;
+  double _totalRevenue = 0;
+  Map<String, double> _machineRevenueMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTransactions();
+  }
+
+  Future<void> _fetchTransactions() async {
+    setState(() => _isLoadingTransactions = true);
+    try {
+      final response = await http.get(Uri.parse('https://bvm-web-portal.onrender.com/api/getSalesData'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success') {
+          final List<dynamic> list = data['data'];
+          final List<TransactionModel> txns = list.map((e) => TransactionModel.fromJson(e)).toList();
+          
+          double total = 0;
+          Map<String, double> revenueMap = {};
+          
+          for (var t in txns) {
+            total += t.amount;
+            revenueMap[t.machineId] = (revenueMap[t.machineId] ?? 0) + t.amount;
+          }
+
+          setState(() {
+            _allTransactions = txns;
+            _totalRevenue = total;
+            _machineRevenueMap = revenueMap;
+            _isLoadingTransactions = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching transactions: $e');
+      setState(() => _isLoadingTransactions = false);
+    }
+  }
 
   // Sample machine data matching the provided image
   final List<MachineData> _allMachines = mockMachines;
@@ -61,6 +107,42 @@ class _MachinesPageState extends State<MachinesPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  
+                  // Total Sales Summary Card
+                  _isLoadingTransactions 
+                    ? const SizedBox(height: 100, child: Center(child: CircularProgressIndicator(color: Color(0xFFE0CFA9))))
+                    : Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1E1E),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFF333333)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Revenue from Dashboard',
+                              style: GoogleFonts.inter(
+                                color: Colors.grey[400],
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              '₹${_totalRevenue.toStringAsFixed(2)}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFE0CFA9),
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  
                   const SizedBox(height: 32),
 
                   // Search bar and view toggle
@@ -265,7 +347,12 @@ class _MachinesPageState extends State<MachinesPage> {
       ),
       itemCount: _filteredMachines.length,
       itemBuilder: (context, index) {
-        return _MachineGridCard(machine: _filteredMachines[index]);
+        final machine = _filteredMachines[index];
+        final calculatedRevenue = _machineRevenueMap[machine.id] ?? 0.0;
+        return _MachineGridCard(
+          machine: machine,
+          calculatedRevenue: calculatedRevenue,
+        );
       },
     );
   }
@@ -304,12 +391,18 @@ class _MachinesPageState extends State<MachinesPage> {
               ),
               const Divider(height: 1, color: Color(0xFF333333)),
               // Table rows
-              ..._filteredMachines.map((machine) => Column(
-                children: [
-                  _MachineListRow(machine: machine),
-                  const Divider(height: 1, color: Color(0xFF333333)),
-                ],
-              )),
+              ..._filteredMachines.map((machine) {
+                final calculatedRevenue = _machineRevenueMap[machine.id] ?? 0.0;
+                return Column(
+                  children: [
+                    _MachineListRow(
+                      machine: machine,
+                      calculatedRevenue: calculatedRevenue,
+                    ),
+                    const Divider(height: 1, color: Color(0xFF333333)),
+                  ],
+                );
+              }),
             ],
           ),
         ),
@@ -351,8 +444,12 @@ class _ViewToggleButton extends StatelessWidget {
 
 class _MachineGridCard extends StatefulWidget {
   final MachineData machine;
+  final double calculatedRevenue;
 
-  const _MachineGridCard({required this.machine});
+  const _MachineGridCard({
+    required this.machine,
+    required this.calculatedRevenue,
+  });
 
   @override
   State<_MachineGridCard> createState() => _MachineGridCardState();
@@ -479,28 +576,6 @@ class _MachineGridCardState extends State<_MachineGridCard> {
                 ],
               ),
               const SizedBox(height: 16),
-              
-              // Sales
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total Sales',
-                    style: GoogleFonts.inter(
-                      color: Colors.grey[500],
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    widget.machine.sales.toStringAsFixed(2),
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE0CFA9),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -516,8 +591,12 @@ class _MachineGridCardState extends State<_MachineGridCard> {
 
 class _MachineListRow extends StatefulWidget {
   final MachineData machine;
+  final double calculatedRevenue;
 
-  const _MachineListRow({required this.machine});
+  const _MachineListRow({
+    required this.machine,
+    required this.calculatedRevenue,
+  });
 
   @override
   State<_MachineListRow> createState() => _MachineListRowState();
