@@ -30,8 +30,8 @@ class TransactionModel {
     // Simple image mapping based on name or default
     String pName = json['product_name'] ?? 'Unknown';
     String img = 'assets/images/cappuccino.png'; // Default
-    if (pName.toLowerCase().contains('espresso')) img = 'assets/images/espresso.png';
-    else if (pName.toLowerCase().contains('latte')) img = 'assets/images/latte.png';
+    if (pName.toLowerCase().contains('espresso')) img = 'assets/images/espresso.jpg';
+    else if (pName.toLowerCase().contains('latte')) img = 'assets/images/latte.jpg';
     
     return TransactionModel(
       id: json['transaction_id']?.toString() ?? '',
