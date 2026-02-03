@@ -57,6 +57,8 @@ class _DashboardPageState extends State<DashboardPage> {
       startDate = now.subtract(const Duration(days: 7));
     } else if (_selectedRange == 'Last 30 Days') {
       startDate = now.subtract(const Duration(days: 30));
+    } else if (_selectedRange == 'All Time') {
+      return _allTransactions;
     } else if (_selectedRange == 'Custom Range' && _customRange != null) {
       return _allTransactions.where((t) => 
         t.date.isAfter(_customRange!.start) && 
@@ -306,6 +308,12 @@ class _SalesPerformanceSection extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           _DateRangeButton(
+                            text: 'All Time',
+                            isActive: selectedRange == 'All Time',
+                            onTap: () => onRangeChanged('All Time'),
+                          ),
+                          const SizedBox(width: 12),
+                          _DateRangeButton(
                             text: selectedRange == 'Custom Range' ? 'Custom Range' : 'Custom', 
                             hasDropdown: true,
                             isActive: selectedRange == 'Custom Range',
@@ -345,6 +353,12 @@ class _SalesPerformanceSection extends StatelessWidget {
                       text: 'Last 30 Days',
                       isActive: selectedRange == 'Last 30 Days',
                       onTap: () => onRangeChanged('Last 30 Days'),
+                    ),
+                    const SizedBox(width: 12),
+                    _DateRangeButton(
+                      text: 'All Time',
+                      isActive: selectedRange == 'All Time',
+                      onTap: () => onRangeChanged('All Time'),
                     ),
                     const SizedBox(width: 12),
                     _DateRangeButton(

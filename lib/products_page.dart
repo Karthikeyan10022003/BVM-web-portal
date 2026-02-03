@@ -88,20 +88,20 @@ class _ProductsPageState extends State<ProductsPage> {
                     ),
                   ), 
                 const Spacer(),
-                const Icon(Icons.notifications, color: Colors.white),
-                const SizedBox(width: 50),
-                ElevatedButton.icon(
-                onPressed: () {
-                    // Perform an action
-                },
+                // const Icon(Icons.notifications, color: Colors.white),
+                // const SizedBox(width: 50),
+                // ElevatedButton.icon(
+                // onPressed: () {
+                //     // Perform an action
+                // },
                
-                icon: const Icon(Icons.add), // The icon widget
-                label: const Text('Add Products'),    // The text label
-                style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.black,
-                    backgroundColor: const Color(0xFFFFFDD0),//cream color
-                ),
-                )
+                // icon: const Icon(Icons.add), // The icon widget
+                // label: const Text('Add Products'),    // The text label
+                // style: ElevatedButton.styleFrom(
+                //     foregroundColor: Colors.black,
+                //     backgroundColor: const Color(0xFFFFFDD0),//cream color
+                // ),
+                // )
                         ],
                     ),
                  
