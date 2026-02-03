@@ -175,21 +175,7 @@ final Map<String, String> mockAssets = {
 
 // Sample machine data
 final List<MachineData> mockMachines = [
-  MachineData(
-    index: 224,
-    id: '2VE0000224',
-    model: 'VENT10INCS',
-    description: '22 Inch Hybrid Elevator',
-    locationCode: 'CL0318',
-    location: 'Nibilish',
-    vendor: 'Nibilish',
-    branch: 'BR00389',
-    city: 'Nibilish',
-    status: 'Online',
-    connectionStatus: 'Disconnected',
-    sales: 2450.75,
-    stockLevel: 85,
-  ),
+ 
   MachineData(
     index: 219,
     id: '2VE0000219',
@@ -214,36 +200,7 @@ final List<MachineData> mockMachines = [
         MachineAlert(title: 'Slot A4 Low Stock', timeString: '5 hours ago', type: AlertType.warning),
     ],
   ),
-  MachineData(
-    index: 222,
-    id: '2VE0000222',
-    model: 'VENT22INCS',
-    description: '22 Inch Spring MAchine',
-    locationCode: '',
-    location: '',
-    vendor: '',
-    branch: '',
-    city: '',
-    status: 'Online',
-    connectionStatus: 'Disconnected',
-    sales: 1988.00,
-    stockLevel: 90,
-  ),
-  MachineData(
-    index: 221,
-    id: 'IVE0000221',
-    model: 'VENT32INCH',
-    description: 'Icecream Vending Machine',
-    locationCode: 'CL0010',
-    location: 'Riota',
-    vendor: 'Riota',
-    branch: 'BR00003',
-    city: 'Bangalore',
-    status: 'Online',
-    connectionStatus: 'Disconnected',
-    sales: 1850.25,
-    stockLevel: 25,
-  ),
+ 
 ];
 
 // Dashboard specific mock data (simplified for the table)

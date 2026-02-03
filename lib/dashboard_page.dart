@@ -4,10 +4,77 @@ import 'package:google_fonts/google_fonts.dart';
 import 'mock_data.dart';
 import 'machines_page.dart';
 import 'main_layout.dart';
+import 'transaction_model.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:intl/intl.dart';
 
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  List<TransactionModel> _allTransactions = [];
+  bool _isLoading = true;
+  String _selectedRange = 'Last 7 Days';
+  DateTimeRange? _customRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTransactions();
+  }
+
+  Future<void> _fetchTransactions() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await http.get(Uri.parse('https://bvm-web-portal.onrender.com/api/getSalesData'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['status'] == 'success') {
+          final List<dynamic> list = data['data'];
+          setState(() {
+            _allTransactions = list.map((e) => TransactionModel.fromJson(e)).toList();
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching transactions: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  List<TransactionModel> get _filteredTransactions {
+    final now = DateTime.now();
+    DateTime startDate;
+
+    if (_selectedRange == 'Last 7 Days') {
+      startDate = now.subtract(const Duration(days: 7));
+    } else if (_selectedRange == 'Last 30 Days') {
+      startDate = now.subtract(const Duration(days: 30));
+    } else if (_selectedRange == 'Custom Range' && _customRange != null) {
+      return _allTransactions.where((t) => 
+        t.date.isAfter(_customRange!.start) && 
+        t.date.isBefore(_customRange!.end.add(const Duration(days: 1)))
+      ).toList();
+    } else {
+      return _allTransactions;
+    }
+
+    return _allTransactions.where((t) => t.date.isAfter(startDate)).toList();
+  }
+
+  void _onRangeChanged(String range, {DateTimeRange? customRange}) {
+    setState(() {
+      _selectedRange = range;
+      _customRange = customRange;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,31 +84,37 @@ class DashboardPage extends StatelessWidget {
         final double padding = isMobile ? 16 : 32;
 
         return Scaffold(
-          backgroundColor: const Color(0xFF141414), // Dark background
+          backgroundColor: const Color(0xFF141414),
           body: MainLayout(
             activeTab: 'Dashboard',
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Dashboard',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
+            child: _isLoading 
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFE0CFA9)))
+              : SingleChildScrollView(
+                padding: EdgeInsets.all(padding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dashboard',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                const SizedBox(height: 32),
-                const _StatsRow(),
-                const SizedBox(height: 32),
-                const _SalesPerformanceSection(),
-                const SizedBox(height: 32),
-                const _MachinesTable(),
-                ],
+                    const SizedBox(height: 32),
+                    _StatsRow(transactions: _filteredTransactions),
+                    const SizedBox(height: 32),
+                    _SalesPerformanceSection(
+                      transactions: _filteredTransactions,
+                      selectedRange: _selectedRange,
+                      onRangeChanged: _onRangeChanged,
+                    ),
+                    const SizedBox(height: 32),
+                    _MachinesTable(transactions: _filteredTransactions),
+                  ],
+                ),
               ),
-            ),
           ),
         );
       }
@@ -52,27 +125,33 @@ class DashboardPage extends StatelessWidget {
 
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow();
+  final List<TransactionModel> transactions;
+  const _StatsRow({required this.transactions});
 
   @override
   Widget build(BuildContext context) {
+    double totalRevenue = 0;
+    for (var t in transactions) {
+      totalRevenue += t.amount;
+    }
+    String totalTransactions = transactions.length.toString();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 800) {
-           // Mobile/Tablet: Use Wrap or Column
            return Column(
              children: [
                Row(
                  children: [
-                   Expanded(child: _StatCard(title: 'Total Machines', value: '1,204')),
+                   Expanded(child: _StatCard(title: 'Total Revenue', value: '₹${totalRevenue.toStringAsFixed(2)}')),
                    const SizedBox(width: 16),
-                   Expanded(child: _StatCard(title: 'Active Machines', value: '1,150', statusColor: Colors.green)),
+                   Expanded(child: _StatCard(title: 'Total Sales', value: totalTransactions)),
                  ],
                ),
                const SizedBox(height: 16),
                Row(
                  children: [
-                    Expanded(child: _StatCard(title: 'Inactive Machines', value: '54', statusColor: Colors.orange)),
+                    Expanded(child: _StatCard(title: 'Active Machines', value: '1,150', statusColor: Colors.green)),
                     const SizedBox(width: 16),
                     Expanded(child: _StatCard(title: 'Users Online', value: '12')),
                  ],
@@ -81,13 +160,20 @@ class _StatsRow extends StatelessWidget {
            );
         }
 
-        // Desktop: Row
         return Row(
           children: [
             Expanded(
               child: _StatCard(
-                title: 'Total Machines',
-                value: '1,204',
+                title: 'Total Revenue',
+                value: '₹${totalRevenue.toStringAsFixed(2)}',
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _StatCard(
+                title: 'Total Sales',
+                value: totalTransactions,
+                statusColor: Colors.green,
               ),
             ),
             const SizedBox(width: 16),
@@ -96,14 +182,6 @@ class _StatsRow extends StatelessWidget {
                 title: 'Active Machines',
                 value: '1,150',
                 statusColor: Colors.green,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _StatCard(
-                title: 'Inactive Machines',
-                value: '54',
-                statusColor: Colors.orange,
               ),
             ),
             const SizedBox(width: 16),
@@ -180,7 +258,15 @@ class _StatCard extends StatelessWidget {
 }
 
 class _SalesPerformanceSection extends StatelessWidget {
-  const _SalesPerformanceSection();
+  final List<TransactionModel> transactions;
+  final String selectedRange;
+  final Function(String, {DateTimeRange? customRange}) onRangeChanged;
+
+  const _SalesPerformanceSection({
+    required this.transactions,
+    required this.selectedRange,
+    required this.onRangeChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -189,7 +275,6 @@ class _SalesPerformanceSection extends StatelessWidget {
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-             // Stack header items on very small screens
              if (constraints.maxWidth < 600) {
                return Column(
                  crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,11 +293,24 @@ class _SalesPerformanceSection extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _DateRangeButton(text: 'Last 7 Days', isActive: true),
+                          _DateRangeButton(
+                            text: 'Last 7 Days', 
+                            isActive: selectedRange == 'Last 7 Days',
+                            onTap: () => onRangeChanged('Last 7 Days'),
+                          ),
                           const SizedBox(width: 12),
-                          _DateRangeButton(text: 'Last 30 Days'),
+                          _DateRangeButton(
+                            text: 'Last 30 Days',
+                            isActive: selectedRange == 'Last 30 Days',
+                            onTap: () => onRangeChanged('Last 30 Days'),
+                          ),
                           const SizedBox(width: 12),
-                          _DateRangeButton(text: 'Custom', hasDropdown: true),
+                          _DateRangeButton(
+                            text: selectedRange == 'Custom Range' ? 'Custom Range' : 'Custom', 
+                            hasDropdown: true,
+                            isActive: selectedRange == 'Custom Range',
+                            onTap: () => _showCustomDatePicker(context),
+                          ),
                         ],
                       ),
                     ),
@@ -237,11 +335,24 @@ class _SalesPerformanceSection extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _DateRangeButton(text: 'Last 7 Days', isActive: true),
+                    _DateRangeButton(
+                      text: 'Last 7 Days', 
+                      isActive: selectedRange == 'Last 7 Days',
+                      onTap: () => onRangeChanged('Last 7 Days'),
+                    ),
                     const SizedBox(width: 12),
-                    _DateRangeButton(text: 'Last 30 Days'),
+                    _DateRangeButton(
+                      text: 'Last 30 Days',
+                      isActive: selectedRange == 'Last 30 Days',
+                      onTap: () => onRangeChanged('Last 30 Days'),
+                    ),
                     const SizedBox(width: 12),
-                    _DateRangeButton(text: 'Custom Range', hasDropdown: true),
+                    _DateRangeButton(
+                      text: 'Custom Range', 
+                      hasDropdown: true,
+                      isActive: selectedRange == 'Custom Range',
+                      onTap: () => _showCustomDatePicker(context),
+                    ),
                   ],
                 ),
               ],
@@ -252,12 +363,12 @@ class _SalesPerformanceSection extends StatelessWidget {
         const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) {
-            if (constraints.maxWidth < 1100) { // Increased breakpoint for stacking charts
+            if (constraints.maxWidth < 1100) {
               return Column(
                 children: [
-                  const SizedBox(height: 300, child: _RevenueChart()),
+                  SizedBox(height: 300, child: _RevenueChart(transactions: transactions)),
                   const SizedBox(height: 24),
-                  const SizedBox(height: 400, child: _TopSellingBeveragesChart()), // Increased height for mobile legend readability
+                  SizedBox(height: 400, child: _TopSellingBeveragesChart(transactions: transactions)),
                 ],
               );
             }
@@ -265,9 +376,9 @@ class _SalesPerformanceSection extends StatelessWidget {
               height: 340,
               child: Row(
                 children: [
-                  const Expanded(flex: 2, child: _RevenueChart()),
+                  Expanded(flex: 2, child: _RevenueChart(transactions: transactions)),
                   const SizedBox(width: 24),
-                  const Expanded(flex: 1, child: _TopSellingBeveragesChart()),
+                  Expanded(flex: 1, child: _TopSellingBeveragesChart(transactions: transactions)),
                 ],
               ),
             );
@@ -276,54 +387,111 @@ class _SalesPerformanceSection extends StatelessWidget {
       ],
     );
   }
+
+  void _showCustomDatePicker(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFFE0CFA9),
+              onPrimary: Colors.black,
+              surface: Color(0xFF1E1E1E),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      onRangeChanged('Custom Range', customRange: picked);
+    }
+  }
 }
 
 class _DateRangeButton extends StatelessWidget {
   final String text;
   final bool isActive;
   final bool hasDropdown;
+  final VoidCallback onTap;
 
   const _DateRangeButton({
     required this.text,
+    required this.onTap,
     this.isActive = false,
     this.hasDropdown = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF333333) : const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFF333333)), // Subtle border
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            text,
-            style: GoogleFonts.inter(
-              color: isActive ? Colors.white : Colors.grey[400],
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF333333) : const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFF333333)), // Subtle border
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              text,
+              style: GoogleFonts.inter(
+                color: isActive ? Colors.white : Colors.grey[400],
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-          if (hasDropdown) ...[
-            const SizedBox(width: 8),
-            Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey[400]),
+            if (hasDropdown) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey[400]),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 }
 
 class _RevenueChart extends StatelessWidget {
-  const _RevenueChart();
+  final List<TransactionModel> transactions;
+  const _RevenueChart({required this.transactions});
 
   @override
   Widget build(BuildContext context) {
+    // Generate spots from transactions
+    Map<String, double> dailyRevenue = {};
+    for (var t in transactions) {
+      String dateKey = DateFormat('MMM dd').format(t.date);
+      dailyRevenue[dateKey] = (dailyRevenue[dateKey] ?? 0) + t.amount;
+    }
+
+    List<String> sortedDates = dailyRevenue.keys.toList();
+    // Sort dates if needed (they should already be somewhat sorted if transactions are sorted)
+    // For simplicity, let's keep them as they appear or sort them by actual DateTime if we have it
+    // Better to sort properly:
+    List<DateTime> dateObjects = dailyRevenue.keys.map((d) => DateFormat('MMM dd').parse(d)).toList();
+    // Adjust year for sorted dates comparison if needed, but relative order within a year is usually enough for dashboard.
+    
+    List<FlSpot> spots = [];
+    double maxY = 1000;
+    for (int i = 0; i < sortedDates.length; i++) {
+        double amount = dailyRevenue[sortedDates[i]]!;
+        spots.add(FlSpot(i.toDouble(), amount));
+        if (amount > maxY) maxY = amount;
+    }
+    
+    if(spots.isEmpty) {
+        spots = [const FlSpot(0, 0)];
+    }
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -392,49 +560,33 @@ class _RevenueChart extends StatelessWidget {
                       reservedSize: 30,
                       interval: 1,
                       getTitlesWidget: (value, meta) {
-                        const style = TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        );
-                        Widget text;
-                        switch (value.toInt()) {
-                          case 0:
-                            text = const Text('Oct 1', style: style);
-                            break;
-                          case 4:
-                            text = const Text('Oct 8', style: style);
-                            break;
-                          case 8:
-                            text = const Text('Oct 15', style: style);
-                            break;
-                          case 12:
-                            text = const Text('Oct 22', style: style);
-                            break;
-                          case 16:
-                            text = const Text('Oct 30', style: style);
-                            break;
-                          default:
-                            text = const Text('', style: style);
-                            break;
+                        const style = TextStyle(color: Colors.grey, fontSize: 10);
+                        int index = value.toInt();
+                        if (index >= 0 && index < sortedDates.length) {
+                             // Show every Nth label to avoid crowding
+                             int interval = (sortedDates.length / 5).ceil();
+                             if (index % interval == 0) {
+                                return SideTitleWidget(
+                                  axisSide: meta.axisSide,
+                                  child: Text(sortedDates[index], style: style),
+                                );
+                             }
                         }
-                        return SideTitleWidget(
-                          axisSide: meta.axisSide,
-                          child: text,
-                        );
+                        return const SizedBox();
                       },
                     ),
                   ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      interval: 500,
+                      interval: (maxY / 4).clamp(100, double.infinity),
                       reservedSize: 42,
                       getTitlesWidget: (value, meta) {
                         return Text(
                           value >= 1000
-                              ? '${(value / 1000).toStringAsFixed(1)}k'
-                              : '${value.toInt()}',
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                              ? '₹${(value / 1000).toStringAsFixed(1)}k'
+                              : '₹${value.toInt()}',
+                          style: const TextStyle(color: Colors.grey, fontSize: 10),
                         );
                       },
                     ),
@@ -442,35 +594,17 @@ class _RevenueChart extends StatelessWidget {
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
-                maxX: 16,
+                maxX: (sortedDates.length - 1).toDouble().clamp(0, double.infinity),
                 minY: 0,
-                maxY: 2000,
+                maxY: maxY * 1.2,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [
-                      FlSpot(0, 800),
-                      FlSpot(1, 1000),
-                      FlSpot(2, 900),
-                      FlSpot(3, 1100),
-                      FlSpot(4, 1000),
-                      FlSpot(5, 1400),
-                      FlSpot(6, 1300),
-                      FlSpot(7, 1600),
-                      FlSpot(8, 1500),
-                      FlSpot(9, 1100),
-                      FlSpot(10, 1200),
-                      FlSpot(11, 900),
-                      FlSpot(12, 1000),
-                      FlSpot(13, 800),
-                      FlSpot(14, 1100),
-                      FlSpot(15, 900),
-                      FlSpot(16, 700),
-                    ],
+                    spots: spots,
                     isCurved: true,
                     color: const Color(0xFFE0CFA9),
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(show: false),
+                    dotData: FlDotData(show: spots.length < 20), // Only show dots for small datasets
                     belowBarData: BarAreaData(
                       show: true,
                       gradient: LinearGradient(
@@ -488,8 +622,10 @@ class _RevenueChart extends StatelessWidget {
                   touchTooltipData: LineTouchTooltipData(
                     getTooltipItems: (touchedSpots) {
                       return touchedSpots.map((LineBarSpot touchedSpot) {
+                        int index = touchedSpot.x.toInt();
+                        String date = index < sortedDates.length ? sortedDates[index] : '';
                         return LineTooltipItem(
-                          'Oct 18\n1,120.50',
+                          '$date\n₹${touchedSpot.y.toStringAsFixed(2)}',
                           GoogleFonts.inter(
                             color: Colors.black,
                             fontWeight: FontWeight.bold,
@@ -509,10 +645,43 @@ class _RevenueChart extends StatelessWidget {
 }
 
 class _TopSellingBeveragesChart extends StatelessWidget {
-  const _TopSellingBeveragesChart();
+  final List<TransactionModel> transactions;
+  const _TopSellingBeveragesChart({required this.transactions});
 
   @override
   Widget build(BuildContext context) {
+    Map<String, int> productCounts = {};
+    for (var t in transactions) {
+      productCounts[t.product] = (productCounts[t.product] ?? 0) + 1;
+    }
+
+    var sortedProducts = productCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    int total = transactions.length;
+    List<Color> colors = [
+      const Color(0xFF8D6E63),
+      const Color(0xFF4E342E),
+      const Color(0xFFA1887F),
+      const Color(0xFFD7CCC8),
+      const Color(0xFF81C784),
+    ];
+
+    List<PieChartSectionData> sections = [];
+    for (int i = 0; i < sortedProducts.length && i < 5; i++) {
+        double percentage = (sortedProducts[i].value / total) * 100;
+        sections.add(PieChartSectionData(
+            color: colors[i % colors.length],
+            value: percentage,
+            radius: 20,
+            showTitle: false,
+        ));
+    }
+
+    // Centered text for the top product
+    String topProduct = sortedProducts.isNotEmpty ? sortedProducts[0].key : 'N/A';
+    double topPercentage = sortedProducts.isNotEmpty ? (sortedProducts[0].value / total * 100) : 0;
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -536,23 +705,9 @@ class _TopSellingBeveragesChart extends StatelessWidget {
               ),
               Row(
                 children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.green,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Live',
-                    style: GoogleFonts.inter(
-                      color: Colors.green,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                   Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),),
+                   const SizedBox(width: 6),
+                   Text('Live', style: GoogleFonts.inter(color: Colors.green, fontSize: 12, fontWeight: FontWeight.w500)),
                 ],
               ),
             ],
@@ -566,38 +721,7 @@ class _TopSellingBeveragesChart extends StatelessWidget {
                     sectionsSpace: 0,
                     centerSpaceRadius: 60,
                     startDegreeOffset: -90,
-                    sections: [
-                      PieChartSectionData(
-                        color: const Color(0xFF8D6E63), // Cappuccino Brown
-                        value: 35,
-                        radius: 20,
-                        showTitle: false,
-                      ),
-                      PieChartSectionData(
-                        color: const Color(0xFF4E342E), // Espresso Dark Brown
-                        value: 20,
-                        radius: 20,
-                        showTitle: false,
-                      ),
-                      PieChartSectionData(
-                        color: const Color(0xFFA1887F), // Cold Coffee Light Brown
-                        value: 20,
-                        radius: 20,
-                        showTitle: false,
-                      ),
-                      PieChartSectionData(
-                        color: const Color(0xFFD7CCC8), // Tea Beige
-                        value: 15,
-                        radius: 20,
-                        showTitle: false,
-                      ),
-                      PieChartSectionData(
-                        color: const Color(0xFF81C784), // Green Tea Green
-                        value: 10,
-                        radius: 20,
-                        showTitle: false,
-                      ),
-                    ],
+                    sections: sections.isEmpty ? [PieChartSectionData(color: Colors.grey, value: 100, radius: 20, showTitle: false)] : sections,
                   ),
                 ),
                 Center(
@@ -605,19 +729,12 @@ class _TopSellingBeveragesChart extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '35%',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        '${topPercentage.toStringAsFixed(0)}%',
+                        style: GoogleFonts.inter(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Cappuccino',
-                        style: GoogleFonts.inter(
-                          color: Colors.grey,
-                          fontSize: 12,
-                        ),
+                        topProduct,
+                        style: GoogleFonts.inter(color: Colors.grey, fontSize: 12),
                       ),
                     ],
                   ),
@@ -626,35 +743,16 @@ class _TopSellingBeveragesChart extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const _LegendItem(
-            color: Color(0xFF8D6E63),
-            label: 'Cappuccino',
-            percentage: '35%',
-          ),
-          const SizedBox(height: 8),
-          const _LegendItem(
-            color: Color(0xFF4E342E),
-            label: 'Espresso',
-            percentage: '20%',
-          ),
-          const SizedBox(height: 8),
-          const _LegendItem(
-            color: Color(0xFFA1887F),
-            label: 'Cold Coffee',
-            percentage: '20%',
-          ),
-          const SizedBox(height: 8),
-          const _LegendItem(
-            color: Color(0xFFD7CCC8),
-            label: 'Tea',
-            percentage: '15%',
-          ),
-          const SizedBox(height: 8),
-          const _LegendItem(
-            color: Color(0xFF81C784),
-            label: 'Green Tea',
-            percentage: '10%',
-          ),
+          ...List.generate(sortedProducts.length > 5 ? 5 : sortedProducts.length, (i) {
+             return Padding(
+               padding: const EdgeInsets.only(bottom: 8.0),
+               child: _LegendItem(
+                 color: colors[i % colors.length],
+                 label: sortedProducts[i].key,
+                 percentage: '${(sortedProducts[i].value / total * 100).toStringAsFixed(0)}%',
+               ),
+             );
+          }),
         ],
       ),
     );
@@ -711,10 +809,20 @@ class _LegendItem extends StatelessWidget {
 }
 
 class _MachinesTable extends StatelessWidget {
-  const _MachinesTable();
+  final List<TransactionModel> transactions;
+  const _MachinesTable({required this.transactions});
 
   @override
   Widget build(BuildContext context) {
+    // Calculate machine performance
+    Map<String, double> machineRevenue = {};
+    for (var t in transactions) {
+      machineRevenue[t.machineId] = (machineRevenue[t.machineId] ?? 0) + t.amount;
+    }
+
+    var sortedMachines = machineRevenue.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -730,7 +838,6 @@ class _MachinesTable extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final double minWidth = 800;
-            // Ensure width is at least minWidth even if screen is smaller, enabling horizontal scroll
             final double contentWidth = constraints.maxWidth > minWidth ? constraints.maxWidth : minWidth;
 
             return Container(
@@ -746,27 +853,33 @@ class _MachinesTable extends StatelessWidget {
                   child: Column(
                     children: [
                       const _TableHeader(),
-                      ...(List<MachineData>.from(mockMachines)
-                        ..sort((a, b) => b.sales.compareTo(a.sales)))
-                        .take(5).toList().asMap().entries.map((entry) {
-                           final machine = entry.value;
-                           Color statusColor = Colors.red;
-                           if (machine.status.toLowerCase() == 'online') statusColor = Colors.green;
-                           if (machine.status.toLowerCase().contains('offline')) statusColor = Colors.orange;
-                           
-                           return Column(
-                            children: [
-                               _TableRow(
-                                id: machine.id,
-                                location: machine.location,
-                                status: machine.status,
-                                sales: machine.sales.toStringAsFixed(2),
-                                statusColor: statusColor,
-                              ),
-                              const Divider(height: 1, color: Color(0xFF333333)),
-                            ],
-                          );
-                        }),
+                      if (sortedMachines.isEmpty)
+                         const Padding(padding: EdgeInsets.all(24), child: Text("No machine data for this range", style: TextStyle(color: Colors.grey))),
+                      
+                      ...sortedMachines.take(5).map((entry) {
+                         final machineId = entry.key;
+                         final revenue = entry.value;
+                         
+                         // Try to find machine in mock data for location
+                         final mockMachine = mockMachines.firstWhere((m) => m.id == machineId, 
+                            orElse: () => MachineData(index: 0, id: machineId, model: '', description: '', locationCode: '', location: 'Unknown Location', vendor: '', branch: '', city: '', status: 'Online', connectionStatus: '', sales: 0, stockLevel: 0));
+
+                         Color statusColor = Colors.green;
+                         if (mockMachine.status.toLowerCase() != 'online') statusColor = Colors.orange;
+                         
+                         return Column(
+                          children: [
+                             _TableRow(
+                              id: machineId,
+                              location: mockMachine.location,
+                              status: mockMachine.status,
+                              sales: revenue.toStringAsFixed(2),
+                              statusColor: statusColor,
+                            ),
+                            const Divider(height: 1, color: Color(0xFF333333)),
+                          ],
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -791,7 +904,7 @@ class _TableHeader extends StatelessWidget {
           Expanded(flex: 2, child: _HeaderCell('MACHINE ID')),
           Expanded(flex: 3, child: _HeaderCell('LOCATION')),
           Expanded(flex: 2, child: _HeaderCell('STATUS')),
-          Expanded(flex: 2, child: _HeaderCell('TOTAL SALES (30D)', alignRight: true)),
+          Expanded(flex: 2, child: _HeaderCell('REVENUE', alignRight: true)),
         ],
       ),
     );

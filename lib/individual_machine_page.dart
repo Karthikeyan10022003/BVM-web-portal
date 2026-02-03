@@ -684,22 +684,22 @@ class _ProductSlotCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      InkWell(
-                        onTap: () async {
-                          final result = await showDialog<ProductSlot>(
-                            context: context,
-                            builder: (context) => _EditSlotDialog(slot: slot, machineId: machineId),
-                          );
-                          if (result != null) {
-                            onSlotUpdated(result);
-                          }
-                        },
-                        child: const Icon(
-                          Icons.edit_outlined,
-                          color: Colors.grey,
-                          size: 16,
-                        ),
-                      ),
+                      // InkWell(
+                      //   onTap: () async {
+                      //     final result = await showDialog<ProductSlot>(
+                      //       context: context,
+                      //       builder: (context) => _EditSlotDialog(slot: slot, machineId: machineId),
+                      //     );
+                      //     if (result != null) {
+                      //       onSlotUpdated(result);
+                      //     }
+                      //   },
+                      //   child: const Icon(
+                      //     Icons.edit_outlined,
+                      //     color: Colors.grey,
+                      //     size: 16,
+                      //   ),
+                      // ),
                     ],
                   ),
                   const SizedBox(height: 12),
